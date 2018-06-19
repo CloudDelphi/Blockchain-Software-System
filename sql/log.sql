@@ -1,7 +1,7 @@
-/* ************************************************************************ */
-/* PeopleRelay: log.sql Version: see version.sql                            */
+/* ======================================================================== */
+/* PeopleRelay: log.sql Version: 0.4.1.8                                    */
 /*                                                                          */
-/* Copyright 2017 Aleksei Ilin & Igor Ilin                                  */
+/* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License");          */
 /* you may not use this file except in compliance with the License.         */
@@ -14,7 +14,7 @@
 /* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. */
 /* See the License for the specific language governing permissions and      */
 /* limitations under the License.                                           */
-/* ************************************************************************ */
+/* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
 create generator P_G$Log;
@@ -31,35 +31,47 @@ create table P_TLog(
   Obj               TSysStr64,
   Msg               TSysStr128,
   Comment           TSysStr128,
+
+  FDate             TTimeMark,
+
   CreatedBy         TOperName,
-  ChangedBy         TOperName,
   CreatedAt         TTimeMark,
-  ChangedAt         TTimeMark,
   primary key       (RecId));
 /*-----------------------------------------------------------------------------------------------*/
-create index P_X$Log1 on P_TLog(MsgId);
-create index P_X$Log2 on P_TLog(IsError);
+create index P_X$Log1 on P_TLog(Obj);
+create index P_X$Log2 on P_TLog(MsgId);
+create index P_X$Log3 on P_TLog(IsError);
 /*-----------------------------------------------------------------------------------------------*/
 set term ^ ;
 /*-----------------------------------------------------------------------------------------------*/
+/*
+  WeekNo            TWeekNo,
+  YMonth            TMonthNo,
+  YQuarter          TQuartNo,
+  HalfYear          THalfYear,
+  AYear             TYear,
+  WeekYear          TYear, WeekYear can be less by 1 than Year
+
+  new.AYear = extract(YEAR from new.CreatedAt);
+  new.YMonth = extract(MONTH from new.CreatedAt);
+  new.HalfYear = iif(extract(MONTH from new.CreatedAt) <= 6,1,2);
+  execute procedure YearQuarter(new.CreatedAt) returning_values new.YQuarter;
+  execute procedure WeekNo(new.CreatedAt) returning_values new.WeekYear,new.WeekNo;
+*/
+
 create trigger P_TBI$TLog for P_TLog active before insert position 0
 as
 begin
   if (new.RecId is null) then new.RecId = gen_id(P_G$Log,1);
   new.CreatedBy = CURRENT_USER;
-  new.CreatedAt = 'Now';
-  new.ChangedBy = new.CreatedBy;
-  new.ChangedAt = new.CreatedAt;
+  new.CreatedAt = UTCTime();
+  new.FDate = cast(new.CreatedAt as Date);
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create trigger P_TBU$TLog for P_TLog active before update position 0
 as
 begin
-  new.RecId = old.RecId;
-  new.CreatedBy = old.CreatedBy;
-  new.CreatedAt = old.CreatedAt;
-  new.ChangedBy = CURRENT_USER;
-  new.ChangedAt = CURRENT_TIMESTAMP;
+  exception P_E$Forbidden;
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_ToLog(
@@ -148,8 +160,9 @@ end^
 /*-----------------------------------------------------------------------------------------------*/
 set term ; ^
 /*-----------------------------------------------------------------------------------------------*/
-create view P_Log as select * from P_TLog where IsError = 0;
+create view P_Log as select * from P_TLog;
 create view P_ErrorLog as select * from P_TLog where IsError > 0;
+create view P_DehornLog as select * from P_TLog where MsgId = 300;
 /*-----------------------------------------------------------------------------------------------*/
 grant all on P_TLog to procedure P_ToLog;
 grant select on P_TParams to procedure P_LogMsg;

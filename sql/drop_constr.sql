@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: inet.sql Version: 0.4.1.8                                   */
+/* PeopleRelay: drop_constr.sql Version: 0.4.1.8                            */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -16,29 +16,40 @@
 /* limitations under the License.                                           */
 /* ======================================================================== */
 
-/*-----------------------------------------------------------------------------------------------*/
-set term ^ ;
-/*-----------------------------------------------------------------------------------------------*/
-/*
-select Result from P_IsOnline('google.com',80)
-*/
-create procedure P_IsOnline(IP TIPV6str,APort TUInt)
-returns
-  (Result TBoolean)
-as
-  declare Timeout TUInt;
-begin
-  select IpTimeout from P_TParams into :Timeout;
-  if (Timeout > 0)
-  then
-    Result = CanConnect(Ip,APort,Timeout);
-  else
-    Result = 1;
-  suspend;  
-end^
-/*-----------------------------------------------------------------------------------------------*/
-set term ; ^
-/*-----------------------------------------------------------------------------------------------*/
-grant select on P_TParams to procedure P_IsOnline;
-/*-----------------------------------------------------------------------------------------------*/
-
+drop view P_Fields;
+drop procedure P_Build;
+drop procedure P_FinishBuild;
+drop procedure P_DoGrants;
+drop procedure P_BeginBuild;
+drop procedure P_BuildRepl;
+drop procedure P_S$SenderSQL;
+drop procedure P_S$NewBlock;
+drop procedure P_S$GetHash;
+drop procedure P_S$RevertBlock;
+drop procedure P_S$Commit;
+drop procedure P_S$MPRep;
+drop procedure P_S$FixChain;
+drop procedure P_S$ReplChain;
+drop procedure P_S$AddBlock;
+drop procedure P_StmFields;
+drop procedure P_FieldHash;
+drop procedure P_MPArgFlt;
+drop procedure P_Vars;
+drop procedure P_FieldArgs;
+drop procedure P_Decl;
+drop procedure P_Args_x;
+drop procedure P_Args;
+drop procedure P_CreateField;
+drop procedure P$UTFStm;
+drop procedure P$EncStm;
+drop procedure P$EncType;
+drop procedure P_IsQuoted;
+drop procedure P_DropFields;
+drop procedure P_DropField;
+drop procedure P_FieldCount;
+drop procedure P_EnumFields;
+drop table P_TFields;
+drop table P$TSysNames;
+drop table P$TKeyWords;
+drop table P$TFldFlt;
+drop exception PE$KeyWord;

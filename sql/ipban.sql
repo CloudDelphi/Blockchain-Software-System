@@ -1,7 +1,7 @@
-/* ************************************************************************ */
-/* PeopleRelay: ipban.sql Version: see version.sql                          */
+/* ======================================================================== */
+/* PeopleRelay: ipban.sql Version: 0.4.1.8                                  */
 /*                                                                          */
-/* Copyright 2017 Aleksei Ilin & Igor Ilin                                  */
+/* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License");          */
 /* you may not use this file except in compliance with the License.         */
@@ -14,7 +14,7 @@
 /* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. */
 /* See the License for the specific language governing permissions and      */
 /* limitations under the License.                                           */
-/* ************************************************************************ */
+/* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
 create generator P_G$IpBan;
@@ -22,11 +22,11 @@ create generator P_G$IpBan;
 create table P_TIpBan(
   RecId             TRid,
   IP                TIPV6str not null,
-  Comment           TComment default '',
+  Comment           TComment,
   CreatedBy         TUserName,
   ChangedBy         TUserName,
-  CreatedAt         TTimeMark default CURRENT_TIMESTAMP not null,
-  ChangedAt         TTimeMark default CURRENT_TIMESTAMP not null,
+  CreatedAt         TTimeMark not null,
+  ChangedAt         TTimeMark not null,
   primary key       (RecId));
 /*-----------------------------------------------------------------------------------------------*/
 create unique index P_XU$IpBan on P_TIpBan(IP);
@@ -38,7 +38,7 @@ as
 begin
   if (new.RecId is null) then new.RecId = gen_id(P_G$IpBan,1);
   new.CreatedBy = CURRENT_USER;
-  new.CreatedAt = CURRENT_TIMESTAMP;
+  new.CreatedAt = UTCTime();
   new.ChangedBy = new.CreatedBy;
   new.ChangedAt = new.CreatedAt;
   if (new.IP = '')
@@ -55,7 +55,7 @@ begin
   new.CreatedBy = old.CreatedBy;
   new.CreatedAt = old.CreatedAt;
   new.ChangedBy = CURRENT_USER;
-  new.ChangedAt = CURRENT_TIMESTAMP;
+  new.ChangedAt = UTCTime();
   if (new.IP = '')
   then
     new.IP = null;
@@ -70,7 +70,9 @@ as
   declare IP TIPV6str;
 begin
   select IP from P_TSesIP into :IP;
+  IP = Upper(IP);
   select 1 from P_TIpBan where IP = :IP or :IP like IP || '%' into :Result;
+  suspend;
 end^
 /*-----------------------------------------------------------------------------------------------*/
 set term ; ^

@@ -1,106 +1,85 @@
-(* ************************************************************************ *
- * PeopleRelay: hutils.pas Version: see lib_ver.txt                         *
- *                                                                          *
- * Copyright 2017 Aleksei Ilin & Igor Ilin                                  *
- *                                                                          *
- * Licensed under the Apache License, Version 2.0 (the "License");          *
- * you may not use this file except in compliance with the License.         *
- * You may obtain a copy of the License at                                  *
- *                                                                          *
- *     http://www.apache.org/licenses/LICENSE-2.0                           *
- *                                                                          *
- * Unless required by applicable law or agreed to in writing, software      *
- * distributed under the License is distributed on an "AS IS" BASIS,        *
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. *
- * See the License for the specific language governing permissions and      *
- * limitations under the License.                                           *
- * ************************************************************************ *)
+(* ======================================================================== *)
+(* PeopleRelay: hutils.pas Version: 0.3.5.3                                 *)
+(*                                                                          *)
+(* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             *)
+(*                                                                          *)
+(* Licensed under the Apache License, Version 2.0 (the "License");          *)
+(* you may not use this file except in compliance with the License.         *)
+(* You may obtain a copy of the License at                                  *)
+(*                                                                          *)
+(*     http://www.apache.org/licenses/LICENSE-2.0                           *)
+(*                                                                          *)
+(* Unless required by applicable law or agreed to in writing, software      *)
+(* distributed under the License is distributed on an "AS IS" BASIS,        *)
+(* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. *)
+(* See the License for the specific language governing permissions and      *)
+(* limitations under the License.                                           *)
+(* ======================================================================== *)
 
 unit hutils;
 {/////////////////////////////////////////////////////////////////////////////////////////////////}
 interface
 {/////////////////////////////////////////////////////////////////////////////////////////////////}
 uses
-  SysUtils,Classes,LbCipher,LbAsym,LbRSA,LbProc,LbString;
+  SysUtils,Classes,LbCipher,LbAsym,LbRSA,LbString,LbClass;
 {/////////////////////////////////////////////////////////////////////////////////////////////////}
 type
+PBlobHandle = ^Pointer;
 TBlob = record
-  GetSegment: function(Handle: Pointer; Buffer: PChar; MaxLength: Word; var ReadLength: Word): WordBool; cdecl;
-  Handle: Pointer;
+  GetSegment : function(Handle: PBlobHandle; Buffer: PChar; MaxLength: LongInt; var ReadLength: LongInt): WordBool; cdecl;
+  Handle     : PBlobHandle;
   SegCount,
   MaxSegLen,
-  TotalLen: Integer;
-  PutSegment: procedure(Handle: Pointer; Buffer: PChar; Length: Word); cdecl;
-  Seek: procedure(Handle: Pointer; Mode: Word; Offset: Integer); cdecl;
+  TotalLen   : LongInt;
+  PutSegment : procedure(Handle: PBlobHandle; Buffer: PChar; Length: Word); cdecl;
+  Seek: procedure(Handle: PBlobHandle; Mode: Word; Offset: LongInt); cdecl;
 //  blb_seek_relative: Word = 1; blb_seek_from_tail: Word = 2;
 end;
 PBlob = ^TBlob;
 {/////////////////////////////////////////////////////////////////////////////////////////////////}
+function RDLEncryptStr(const Key,s: String; Encrypt: Boolean): String;
 procedure StrToUTF(Src, Dest: PChar); cdecl; export;
 procedure StrToAnsi(Src, Dest: PChar); cdecl; export;
 
-procedure BlobToUTF(const Src, Dest: TBlob); cdecl; export;
-procedure BlobToAnsi(const Src, Dest: TBlob); cdecl; export;
+procedure BlobToUTF(const Src, Dest: PBlob); cdecl; export;
+procedure BlobToAnsi(const Src, Dest: PBlob); cdecl; export;
 
-procedure rsakey(CString: PAnsiChar); cdecl; export;
-procedure sha256(const Blob: TBlob; CString: PChar); cdecl; export;
-procedure rsasig(Key,CHash,CString: PChar); cdecl; export;
-function sigver(Key,CHash,CSig: PChar): integer; cdecl; export;
+procedure sha1(const Blob: PBlob; CString: PChar); cdecl; export;
+procedure sha256(const Blob: PBlob; CString: PChar); cdecl; export;
+procedure sha256x2(const Blob: PBlob; CString: PChar); cdecl; export;
 
-procedure rsaEncrypt(Key,InStr,OutStr: PChar); cdecl; export;
-procedure rsaDecrypt(Key,InStr,OutStr: PChar); cdecl; export;
+procedure rsakey(const Aks: PInteger; CString: PAnsiChar); cdecl; export;
+procedure rsasig(const Aks: PInteger; Key,CHash,CString: PChar); cdecl; export;
+function sigver(const Aks: PInteger; Key,CHash,CSig: PChar): integer; cdecl; export;
+procedure rsaEncrypt(const Aks: PInteger; Key,InStr,OutStr: PChar); cdecl; export;
+procedure rsaDecrypt(const Aks: PInteger; Key,InStr,OutStr: PChar); cdecl; export;
+procedure rsaEncBlob(const Aks: PInteger; Key: PChar; const Src, Dest: PBlob); cdecl; export;
+procedure rsaDecBlob(const Aks: PInteger; Key: PChar; const Src, Dest: PBlob); cdecl; export;
 
 procedure Encrypt(Key,InStr,OutStr: PChar); cdecl; export;
 procedure Decrypt(Key,InStr,OutStr: PChar); cdecl; export;
+procedure EncBlob(Key: PChar; const Src, Dest: PBlob); cdecl; export;
+procedure DecBlob(Key: PChar; const Src, Dest: PBlob); cdecl; export;
 
-procedure rsaEncBlob(Key: PChar; const Src, Dest: TBlob); cdecl; export;
-procedure rsaDecBlob(Key: PChar; const Src, Dest: TBlob); cdecl; export;
+procedure Version(CString: PChar); cdecl; export;
 
-procedure EncBlob(Key: PChar; const Src, Dest: TBlob); cdecl; export;
-procedure DecBlob(Key: PChar; const Src, Dest: TBlob); cdecl; export;
+const
+  FVer = '0.3.5.3';
 {/////////////////////////////////////////////////////////////////////////////////////////////////}
 implementation
 {-------------------------------------------------------------------------------------------------}
 {/////////////////////////////////////////////////////////////////////////////////////////////////}
 {-------------------------------------------------------------------------------------------------}
-function Base64Str(const s: String; const Enc: Boolean): AnsiString;
-var
-  InStream,
-  OutStream: TStringStream;
+function SoltKey(const L: Integer; const Key: String): String;
 begin
-  InStream:=TStringStream.Create(s);
-  try
-    OutStream:=TStringStream.Create('');
-    try
-      if Enc
-      then
-        LbEncodeBase64A(InStream,OutStream)
-      else
-        LbDecodeBase64A(InStream,OutStream);
-      Result:=OutStream.DataString;
-      finally
-        OutStream.Free;
-      end;
-  finally
-    InStream.Free;
-  end;
-end;
-{-------------------------------------------------------------------------------------------------}
-function Base64Str1(const InStream: TStream; const Enc: Boolean): AnsiString;
-var
-  OutStream: TStringStream;
-begin
-  InStream.Position:=0;
-  OutStream:=TStringStream.Create('');
-  try
-    if Enc
-    then
-      LbEncodeBase64A(InStream,OutStream)
-    else
-      LbDecodeBase64A(InStream,OutStream);
-    Result:=OutStream.DataString;
-    finally
-      OutStream.Free;
+  if Key = ''
+  then
+    Result:=''
+  else  
+    begin
+      Result:=Key;
+      while Length(Result) < L do Result:=Result + Key;
+      Result:=Copy(Result,1,L);
     end;
 end;
 {-------------------------------------------------------------------------------------------------}
@@ -129,87 +108,12 @@ begin
   end;
 end;
 {-------------------------------------------------------------------------------------------------}
-{
-function EncodeBase64(const inStr: string): string;
-  function Encode_Byte(b: Byte): char;
-  const
-    Base64Code: string[64] = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  begin
-    Result := Base64Code[(b and $3F)+1];
-  end;
-var i: Integer;
-begin
-  i := 1;
-  Result := '';
-  while i <= Length(InStr) do begin
-    Result := Result + Encode_Byte(Byte(inStr[i]) shr 2);
-    Result := Result + Encode_Byte((Byte(inStr[i]) shl 4) or (Byte(inStr[i+1]) shr 4));
-    if i+1 <= Length(inStr)
-      then Result := Result + Encode_Byte((Byte(inStr[i+1]) shl 2) or (Byte(inStr[i+2]) shr 6))
-      else Result := Result + '=';
-    if i+2 <= Length(inStr)
-      then Result := Result + Encode_Byte(Byte(inStr[i+2]))
-      else Result := Result + '=';
-    Inc(i, 3);
-  end;
-end;
-}
-{-------------------------------------------------------------------------------------------------}
-{
-function DecodeBase64(const CinLine: string): string;
-const
-  RESULT_ERROR = -2;
-var
-  inLineIndex: Integer;
-  c: Char;
-  x: SmallInt;
-  c4: Word;
-  StoredC4: array[0..3] of SmallInt;
-  InLineLength: Integer;
-begin
-  Result := '';
-  inLineIndex := 1;
-  c4 := 0;
-  InLineLength := Length(CinLine);
-
-  while inLineIndex <= InLineLength do begin
-    while (inLineIndex <= InLineLength) and (c4 < 4) do begin
-      c := CinLine[inLineIndex];
-      case c of
-        '+'     : x := 62;
-        '/'     : x := 63;
-        '0'..'9': x := Ord(c) - (Ord('0')-52);
-        '='     : x := -1;
-        'A'..'Z': x := Ord(c) - Ord('A');
-        'a'..'z': x := Ord(c) - (Ord('a')-26);
-      else
-        x := RESULT_ERROR;
-      end;
-      if x <> RESULT_ERROR then begin
-        StoredC4[c4] := x;
-        Inc(c4);
-      end;
-      Inc(inLineIndex);
-    end;
-    if c4 = 4 then begin
-      c4 := 0;
-      Result := Result + Char((StoredC4[0] shl 2) or (StoredC4[1] shr 4));
-      if StoredC4[2] = -1 then Exit;
-      Result := Result + Char((StoredC4[1] shl 4) or (StoredC4[2] shr 2));
-      if StoredC4[3] = -1 then Exit;
-      Result := Result + Char((StoredC4[2] shl 6) or (StoredC4[3]));
-    end;
-  end;
-end;
-}
-
-
 function BlobToStr(const ABlob: TBlob): AnsiString;
 var
   EOB: Boolean;
-  n: Word;
+  n,
   BlobLen,
-  TotRead: Integer;
+  TotRead: LongInt;
 begin
   Result:='';
   with ABlob do
@@ -217,7 +121,8 @@ begin
     try
       TotRead:=0;
       BlobLen:=ABlob.TotalLen;
-      Result:=StringOfChar(#0,BlobLen + 1);
+//      Result:=StringOfChar(#0,BlobLen + 1);
+      Result:=StringOfChar(#0,BlobLen);
       repeat
         n:=0;
         EOB:= not GetSegment(Handle, PChar(Result) + TotRead, $FFFF, n);
@@ -233,7 +138,7 @@ procedure StrToBlob(S: AnsiString; const Blob: TBlob);
 var
   n: Word;
   StrTail,
-  TailPos: Integer;
+  TailPos: LongInt;
 begin
   if Assigned(Blob.Handle) then
   try
@@ -250,22 +155,62 @@ begin
   end;
 end;
 {-------------------------------------------------------------------------------------------------}
-procedure sha256(const Blob: TBlob; CString: PChar); cdecl; export;
+procedure sha1(const Blob: PBlob; CString: PChar); cdecl; export;
 var
-  Hash: T256BitDigest;
+  Hash: TSHA1Digest;
+  s: String;
 begin
   try
     CString[0] := #0;
-    Hash:=CalcSHA256(BlobToStr(Blob));
-//    StrPCopy(CString,EncodeBase64(Hash,SizeOf(Hash)));
+    s:=BlobToStr(Blob^);
+    HashSHA1(Hash,s[1],Length(s));
     StrPCopy(CString,Base64Buf(Hash,SizeOf(Hash),True));
   except
     CString[0] := #0;
   end;
 end;
 {-------------------------------------------------------------------------------------------------}
+procedure sha256(const Blob: PBlob; CString: PChar); cdecl; export;
+var
+  Hash: T256BitDigest;
+begin
+  try
+    CString[0] := #0;
+    Hash:=CalcSHA256(BlobToStr(Blob^));
+    StrPCopy(CString,Base64Buf(Hash,SizeOf(Hash),True));
+  except
+    CString[0] := #0;
+  end;
+end;
+{-------------------------------------------------------------------------------------------------}
+procedure sha256x2(const Blob: PBlob; CString: PChar); cdecl; export;
+var
+  Hash: T256BitDigest;
+begin
+  try
+    CString[0] := #0;
+    Hash:=CalcSHA256(BlobToStr(Blob^));
+    Hash:=CalcSHA256(Hash,SizeOf(Hash));
+    StrPCopy(CString,Base64Buf(Hash,SizeOf(Hash),True));
+  except
+    CString[0] := #0;
+  end;
+end;
+{-------------------------------------------------------------------------------------------------}
+function CalcKeySize(const Aks: Integer): TLbAsymKeySize;
+begin
+  case Aks of
+    256  : Result:=aks256;
+    512  : Result:=aks512;
+    768  : Result:=aks768;
+    2048 : Result:=aks2048;
+    3072 : Result:=aks3072;
+    else   Result:=aks1024;
+  end;  
+end;
+{-------------------------------------------------------------------------------------------------}
 // Key = Private Key or Public Key
-function rsaCipher(const Key,InStr: AnsiString; AFlag: Boolean): AnsiString;
+function rsaCipher(const Aks: Integer; const Key,InStr: AnsiString; AFlag: Boolean): AnsiString;
 var
   p: Integer;
   RSASSA: TLbRSASSA;
@@ -278,7 +223,7 @@ begin
     ex:=Trim(Copy(Key,p+1,MaxInt));
     RSASSA:=TLbRSASSA.Create(nil);
     try
-      RSASSA.KeySize:=aks1024;
+      RSASSA.KeySize:=CalcKeySize(Aks);
       RSASSA.PrivateKey.ModulusAsString:=md;
       RSASSA.PrivateKey.ExponentAsString:=ex;
       Result:=RSAEncryptString(InStr,RSASSA.PrivateKey,AFlag);
@@ -290,18 +235,18 @@ begin
   end;
 end;
 {-------------------------------------------------------------------------------------------------}
-procedure rsaEncrypt(Key,InStr,OutStr: PChar); cdecl; export;
+procedure rsaEncrypt(const Aks: PInteger; Key,InStr,OutStr: PChar); cdecl; export;
 begin
-  StrPCopy(OutStr,rsaCipher(Key,InStr,True));
+  StrPCopy(OutStr,rsaCipher(Aks^,Key,InStr,True));
 end;
 {-------------------------------------------------------------------------------------------------}
-procedure rsaDecrypt(Key,InStr,OutStr: PChar); cdecl; export;
+procedure rsaDecrypt(const Aks: PInteger; Key,InStr,OutStr: PChar); cdecl; export;
 begin
-  StrPCopy(OutStr,rsaCipher(Key,InStr,False));
+  StrPCopy(OutStr,rsaCipher(Aks^,Key,InStr,False));
 end;
 {-------------------------------------------------------------------------------------------------}
 // Key = Private Key
-procedure rsasig(Key,CHash,CString: PChar); cdecl; export;
+procedure rsasig(const Aks: PInteger; Key,CHash,CString: PChar); cdecl; export;
 var
   p: Integer;
   RSASSA: TLbRSASSA;
@@ -314,7 +259,7 @@ begin
     ex:=Trim(Copy(Key,p+1,MaxInt));
     RSASSA:=TLbRSASSA.Create(nil);
     try
-      RSASSA.KeySize:=aks1024;
+      RSASSA.KeySize:=CalcKeySize(Aks^);
       RSASSA.PrivateKey.ModulusAsString:=md;
       RSASSA.PrivateKey.ExponentAsString:=ex;
       StrPCopy(CString,RSAEncryptStringA(CHash,RSASSA.PrivateKey,True));
@@ -327,7 +272,7 @@ begin
 end;
 {-------------------------------------------------------------------------------------------------}
 // Key = Public Key
-function sigver(Key,CHash,CSig: PChar): integer; cdecl; export;
+function sigver(const Aks: PInteger; Key,CHash,CSig: PChar): integer; cdecl; export;
 var
   p: Integer;
   RSASSA: TLbRSASSA;
@@ -340,7 +285,7 @@ begin
     ex:=Trim(Copy(Key,p+1,MaxInt));
     RSASSA:=TLbRSASSA.Create(nil);
     try
-      RSASSA.KeySize:=aks1024;
+      RSASSA.KeySize:=CalcKeySize(Aks^);
       RSASSA.PublicKey.ModulusAsString:=md;
       RSASSA.PublicKey.ExponentAsString:=ex;
       if RSAEncryptStringA(CSig,RSASSA.PublicKey,False) = CHash then Result:=1;
@@ -352,14 +297,14 @@ begin
   end;
 end;
 {-------------------------------------------------------------------------------------------------}
-procedure rsakey(CString: PChar); cdecl; export;
+procedure rsakey(const Aks: PInteger; CString: PChar); cdecl; export;
 var
   RSASSA: TLbRSASSA;
 begin
   CString[0] := #0;
   RSASSA:=TLbRSASSA.Create(nil);
   try
-    RSASSA.KeySize:=aks1024;
+    RSASSA.KeySize:=CalcKeySize(Aks^);
     RSASSA.GenerateKeyPair;
     StrPCopy(CString,
       RSASSA.PrivateKey.ModulusAsString + ',' +
@@ -388,38 +333,37 @@ begin
   end;
 end;
 {-------------------------------------------------------------------------------------------------}
-procedure BlobToUTF(const Src, Dest: TBlob); cdecl; export;
+procedure BlobToUTF(const Src, Dest: PBlob); cdecl; export;
 begin
   try
-    StrToBlob(AnsiToUtf8(BlobToStr(Src)),Dest);
+    StrToBlob(AnsiToUtf8(BlobToStr(Src^)),Dest^);
   except
     // nop;
   end;
 end;
 {-------------------------------------------------------------------------------------------------}
-procedure BlobToAnsi(const Src, Dest: TBlob); cdecl; export;
+procedure BlobToAnsi(const Src, Dest: PBlob); cdecl; export;
 begin
   try
-    StrToBlob(UTF8ToAnsi(BlobToStr(Src)),Dest);
+    StrToBlob(UTF8ToAnsi(BlobToStr(Src^)),Dest^);
   except
     // nop;
   end;
 end;
 {-------------------------------------------------------------------------------------------------}
-procedure rsaEncBlob(Key: PChar; const Src, Dest: TBlob); cdecl; export;
+procedure rsaEncBlob(const Aks: PInteger; Key: PChar; const Src, Dest: PBlob); cdecl; export;
 begin
   try
-    StrToBlob(rsaCipher(Key,BlobToStr(Src),True),Dest);
-//    StrToBlob(rsaCipher(Key,Trim(BlobToStr(Src)),True),Dest);
+    StrToBlob(rsaCipher(Aks^,Key,BlobToStr(Src^),True),Dest^);
   except
     // nop;
   end;
 end;
 {-------------------------------------------------------------------------------------------------}
-procedure rsaDecBlob(Key: PChar; const Src, Dest: TBlob); cdecl; export;
+procedure rsaDecBlob(const Aks: PInteger; Key: PChar; const Src, Dest: PBlob); cdecl; export;
 begin
   try
-    StrToBlob(rsaCipher(Key,Trim(BlobToStr(Src)),False),Dest);
+    StrToBlob(rsaCipher(Aks^,Key,Trim(BlobToStr(Src^)),False),Dest^);
   except
     // nop;
   end;
@@ -427,33 +371,27 @@ end;
 {-------------------------------------------------------------------------------------------------}
 function RDLEncryptStr(const Key,s: String; Encrypt: Boolean): String;
 var
-  InStream,
-  OutStream: TStringStream;
-  AData: String;
+  r: TLbRijndael;
 begin
-  Result:='';
   try
-    if Encrypt
+    if (s = '') 
+      or (Key = '')
     then
-      AData:=s
+      Result:=s
     else
-      AData:=Base64Str(s,False);
-    InStream:=TStringStream.Create(AData);
-    try
-      OutStream:=TStringStream.Create('');
-      try
-        RDLEncryptStreamCBC(InStream,OutStream,Key[1],Length(Key),Encrypt);
-        if Encrypt
-        then
-          Result:=Base64Str1(OutStream,True)
-        else
-          Result:=OutStream.DataString;
-      finally
-        OutStream.Free;
+      begin
+        r:=TLbRijndael.Create(nil);
+        try
+          r.GenerateKey(Key);
+          if Encrypt
+          then
+            Result:=r.EncryptString(s)
+          else
+            Result:=r.DecryptString(s);
+        finally
+          r.Free;
+        end;
       end;
-    finally
-      InStream.Free;
-    end;
   except
     Result:='?';
   end;
@@ -469,23 +407,28 @@ begin
   StrPCopy(OutStr,RDLEncryptStr(Key,InStr,False));
 end;
 {-------------------------------------------------------------------------------------------------}
-procedure EncBlob(Key: PChar; const Src, Dest: TBlob); cdecl; export;
+procedure EncBlob(Key: PChar; const Src, Dest: PBlob); cdecl; export;
 begin
   try
-    StrToBlob(RDLEncryptStr(Key,BlobToStr(Src),True),Dest);
-//    StrToBlob(RDLEncryptStr(Key,Trim(BlobToStr(Src)),True),Dest);
+    StrToBlob(RDLEncryptStr(Key,BlobToStr(Src^),True),Dest^);
+//    StrToBlob(RDLEncryptStr(Key,Trim(BlobToStr(Src^)),True),Dest^);
   except
     // nop;
   end;
 end;
 {-------------------------------------------------------------------------------------------------}
-procedure DecBlob(Key: PChar; const Src, Dest: TBlob); cdecl; export;
+procedure DecBlob(Key: PChar; const Src, Dest: PBlob); cdecl; export;
 begin
   try
-    StrToBlob(RDLEncryptStr(Key,Trim(BlobToStr(Src)),False),Dest);
+    StrToBlob(RDLEncryptStr(Key,Trim(BlobToStr(Src^)),False),Dest^);
   except
     // nop;
   end;
+end;
+{-------------------------------------------------------------------------------------------------}
+procedure Version(CString: PChar); cdecl; export;
+begin
+  StrPCopy(CString,FVer);
 end;
 {-------------------------------------------------------------------------------------------------}
 {$Warnings OFF}

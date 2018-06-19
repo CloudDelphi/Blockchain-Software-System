@@ -1,7 +1,7 @@
-/* ************************************************************************ */
-/* PeopleRelay: ndvote.sql Version: see version.sql                         */
+/* ======================================================================== */
+/* PeopleRelay: ndvote.sql Version: 0.4.1.8                                 */
 /*                                                                          */
-/* Copyright 2017 Aleksei Ilin & Igor Ilin                                  */
+/* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License");          */
 /* you may not use this file except in compliance with the License.         */
@@ -14,7 +14,7 @@
 /* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. */
 /* See the License for the specific language governing permissions and      */
 /* limitations under the License.                                           */
-/* ************************************************************************ */
+/* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
 create generator P_G$NDV;
@@ -23,8 +23,8 @@ create table P_TNDVoter(
   RecId             TRid,
   ParId             TRid,
   NodeId            TNodeId not null,
-  Acceptor          TBoolean,  
-  CreatedAt         TTimeMark default CURRENT_TIMESTAMP not null,
+  Acceptor          TBoolean,
+  CreatedAt         TTimeMark not null,
   primary key       (RecId),
   foreign key       (ParId) references P_TNodelog(RecId)
     on update       CASCADE
@@ -37,6 +37,7 @@ set term ^ ;
 create trigger P_TBI$TNDVoter for P_TNDVoter active before insert position 0
 as
 begin
+  new.CreatedAt = UTCTime();
   new.RecId = gen_id(P_G$NDV,1);
 end^
 /*-----------------------------------------------------------------------------------------------*/
@@ -46,10 +47,11 @@ create view P_NDV
 as
   select
     NL.*,
-    (select count(RecId) from P_TNDVoter V where V.ParId = NL.RecId ) as Voters,
-    (select count(RecId) from P_TNDVoter V where V.ParId = NL.RecId and V.Acceptor = 1) as ACnt
+    (select count(RecId) from P_TNDVoter V where V.ParId = NL.RecId) + NL.QrmAdmt as VT,
+    (select count(RecId) from P_TNDVoter V where V.ParId = NL.RecId and V.Acceptor = 1) + NL.QrmAdmt as VA
   from
-    P_TNodelog NL
-  where State = 0;
+    P_TNodelog NL;
+/*-----------------------------------------------------------------------------------------------*/
+create view P_NDVoter as select * from P_TNDVoter;
 /*-----------------------------------------------------------------------------------------------*/
 

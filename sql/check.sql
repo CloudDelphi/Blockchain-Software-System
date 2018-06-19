@@ -1,7 +1,7 @@
-/* ************************************************************************ */
-/* PeopleRelay: check.sql Version: see version.sql                          */
+/* ======================================================================== */
+/* PeopleRelay: check.sql Version: 0.4.1.8                                  */
 /*                                                                          */
-/* Copyright 2017 Aleksei Ilin & Igor Ilin                                  */
+/* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License");          */
 /* you may not use this file except in compliance with the License.         */
@@ -14,36 +14,48 @@
 /* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. */
 /* See the License for the specific language governing permissions and      */
 /* limitations under the License.                                           */
-/* ************************************************************************ */
+/* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
 set term ^ ;
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_GetHash(RecId TRid)
+create procedure P_GetHash(BlockNo TRid)
 as
 begin
   exit;
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_IsBlock(
-  RecId TRid,
+  BlockNo TRid,
   Checksum TIntHash,
   SelfHash TChHash)
 returns
-  (Result TBoolean)
+  (Result TCheck)
 as
 begin
-  Result = 0;
-  if (exists (select 1 from P_TChain
-    where RecId = :RecId
-      and Checksum = :Checksum
-      and SelfHash = :SelfHash))
+  if ((select Result from P_ChainSize) >= BlockNo)
   then
-    Result = 1;
+    begin
+      Result = 0;
+      if (exists (select 1 from P_TChain
+        where BlockNo = :BlockNo
+          and Checksum = :Checksum
+          and SelfHash = :SelfHash))
+      then
+        Result = 1;
+    end
+  else
+    Result = 2; /* So far we have the shorter Chain. */
+
+  when any do
+  begin
+    Result = -1;
+    execute procedure P_LogErr(-1,sqlcode,gdscode,sqlstate,'P_IsBlock','Error',null,null);
+  end
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_DoCheckBlock(
-  RecId TRid,
+  BlockNo TRid,
   Checksum TIntHash,
   SelfHash TChHash,
 
@@ -52,24 +64,24 @@ create procedure P_DoCheckBlock(
   PWD TPWD,
   NodeId TNodeId)
 returns
-  (Result TTrilean)
+  (Result TCheck)
 as
   declare stm TSysStr512;
 begin
   stm = 'execute procedure P_IsBlock(?,?,?)';
   execute statement
-    (stm) (:RecId,:Checksum,:SelfHash)
+    (stm) (:BlockNo,:Checksum,:SelfHash)
     on external DB as user Usr password PWD
   into :Result;
 
   when any do
   begin
     Result = -1;
-    execute procedure P_LogErr(-1,sqlcode,gdscode,sqlstate,'DoCheckBlock',NodeId,'Error','');
+    execute procedure P_LogErr(-1,sqlcode,gdscode,sqlstate,'DoCheckBlock',NodeId,'Error',null);
   end
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_CheckBlock(RecId TRid)
+create procedure P_CheckBlock(BlockNo TRid)
 returns
   (Result TBoolean,
    TotOk TInt32,
@@ -77,7 +89,7 @@ returns
 as
   declare VoteLim TCount;
   declare CheckId TRef;
-  declare rslt TTrilean;
+  declare rslt TCheck;
   declare TM0 TTimeMark;
   declare TMSlice TInt32;
   declare DoLog TBoolean;
@@ -95,13 +107,14 @@ begin
   TotOk = 0;
   TotFail = 0;
   TM0 = CURRENT_TIMESTAMP;
+
   select Acceptor,TimeSlice,LogBlockChk from P_TParams into :Acceptor,:TMSlice,:DoLog;
-  select Checksum,SelfHash from P_TChain where RecId = :RecId into :Checksum,:SelfHash;
+  select Checksum,SelfHash from P_TChain where BlockNo = :BlockNo into :Checksum,:SelfHash;
 
   if (DoLog = 1) then
-    insert into P_TChecks(ChainId) values(:RecId) returning RecId into :CheckId;
+    insert into P_TChecks(ChainId) values(:BlockNo) returning RecId into :CheckId;
 
-  execute procedure P_FillNodeCahe(4,Acceptor) returning_values VoteLim;
+  execute procedure P_VoteLim(4,Acceptor) returning_values VoteLim;
 
   for select
       NodeId,
@@ -111,7 +124,7 @@ begin
       ExtPWD,
       FullPath
     from
-      P_NodeCahe
+      P_NodeList(4,:Acceptor)
     into
       :NodeId,
       :PeerIp,
@@ -122,8 +135,8 @@ begin
   do
     if ((select Result from P_IsOnline(:PeerIP,:PeerPort)) = 1) then
     begin
-      execute procedure P_DoCheckBlock(RecId,Checksum,SelfHash,DB,Usr,PWD,NodeId) returning_values rslt;
-      if (rslt <= 0)
+      execute procedure P_DoCheckBlock(BlockNo,Checksum,SelfHash,DB,Usr,PWD,NodeId) returning_values rslt;
+      if (rslt <= 0 or rslt = 2)
       then
         TotFail = TotFail + 1;
       else
@@ -151,6 +164,9 @@ begin
   suspend;  
 end^
 /*-----------------------------------------------------------------------------------------------*/
+/*
+select * from P_Compare
+*/
 create procedure P_Compare
 returns
   (Result TBoolean,
@@ -159,7 +175,7 @@ returns
    TotOk TInt32,
    TotFail TInt32)
 as
-  declare RecId TRid;
+  declare BlockNo TRid;
   declare TM0 TTimeMark;
   declare TMSlice TInt32;
 begin
@@ -167,27 +183,27 @@ begin
   TM0 = CURRENT_TIMESTAMP;
   select TimeSlice from P_TParams into :TMSlice;
   for select
-      RecId
+      BlockNo
     from
       P_TChain
     order by
-      RecId desc
+      BlockNo desc
     into
-      :RecId
+      :BlockNo
   do
     begin
-      if (Size is null) then Size = RecId;
-      execute procedure P_CheckBlock(RecId) returning_values Result,TotOk,TotFail;
+      if (Size is null) then Size = BlockNo;
+      execute procedure P_CheckBlock(BlockNo) returning_values Result,TotOk,TotFail;
       if (Result = 1) then
       begin
-        Delta = RecId - Size;
+        Delta = BlockNo - Size;
         Leave;
       end
       if(TMSlice > 0
         and datediff(minute,TM0,cast('Now' as TimeStamp)) > TMSlice)
       then
         begin
-          execute procedure P_LogErr(-400,RecId,Size,null,'P_Compare','Long duration',null,null);
+          execute procedure P_LogErr(-400,BlockNo,Size,null,'P_Compare','Long duration',null,null);
           Leave;
         end
     end
@@ -196,11 +212,9 @@ end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_FindBlock(SenderId TSenderId,BlockId TBlockId,Quorum TCount = 1)
 returns
-  (Result TBoolean)
+  (Result TCount)
 as
-  declare q TCount;
-  declare r TTrilean;
-  declare Acceptor TBoolean;
+  declare r TCheck;
   declare PeerIP TIPV6str;
   declare PeerPort TPort;
   declare PWD TPWD;
@@ -209,16 +223,11 @@ as
   declare stm TSysStr64;
 begin
   stm = 'execute procedure P_HasBlock(?,?)';
-
-  select Acceptor from P_TParams into :Acceptor;
-  execute procedure P_FillNodeCahe(3,Acceptor) returning_values q; /* 3 is chosen arbitrary; we do not need a result at all. */
-  q = 0;
-
   execute procedure P_HasBlock(SenderId,BlockId) returning_values r;
-  if (r = 1) then q = q + 1;
+  if (r = 1) then Result = 1;
 
-  if (q < Quorum)
-  then
+  if (Result < Quorum) then
+  begin
     for select
         Ip,
         APort,
@@ -226,7 +235,9 @@ begin
         ExtPWD,
         FullPath
       from
-        P_NodeCahe
+        P_NodeList(5,0)
+      order by
+        Accept desc
       into
         :PeerIp,
         :PeerPort,
@@ -240,21 +251,19 @@ begin
           (stm) (:SenderId,:BlockId)
           on external DB as user Usr password PWD
           into :r;
-        if (r = 1) then q = q + 1;
-        if (q >= Quorum) then
-        begin
-          Result = 1;
-          Leave;
-        end
+        if (r = 1) then Result = Result + 1;
+        if (Result >= Quorum) then Leave;
       end
-  else
-    Result = 1;
+  end
   suspend;
 end^
 /*-----------------------------------------------------------------------------------------------*/
 set term ; ^
 /*-----------------------------------------------------------------------------------------------*/
 grant select on P_TChain to procedure P_IsBlock;
+grant execute on procedure P_LogErr to procedure P_IsBlock;
+grant execute on procedure P_ChainSize to procedure P_IsBlock;
+
 grant execute on procedure P_LogErr to procedure P_DoCheckBlock;
 
 grant all on P_TChecks to procedure P_CheckBlock;
@@ -262,8 +271,9 @@ grant all on P_TChkLog to procedure P_CheckBlock;
 grant select on P_TChain to procedure P_CheckBlock;
 grant select on P_TParams to procedure P_CheckBlock;
 grant execute on procedure P_LogErr to procedure P_CheckBlock;
+grant execute on procedure P_VoteLim to procedure P_CheckBlock;
 grant execute on procedure P_IsOnline to procedure P_CheckBlock;
-grant execute on procedure P_FillNodeCahe to procedure P_CheckBlock;
+grant execute on procedure P_NodeList to procedure P_CheckBlock;
 grant execute on procedure P_DoCheckBlock to procedure P_CheckBlock;
 
 grant select on P_TChain to  procedure P_Compare;
@@ -277,7 +287,6 @@ grant execute on procedure P_LOGERR to procedure P_Compare;
 grant select on P_TParams to procedure P_FindBlock;
 grant execute on procedure P_IsOnline to procedure P_FindBlock;
 grant execute on procedure P_HasBlock to procedure P_FindBlock;
-grant execute on procedure P_FillNodeCahe to procedure P_FindBlock;
-
+grant execute on procedure P_NodeList to procedure P_FindBlock;
 /*-----------------------------------------------------------------------------------------------*/
 

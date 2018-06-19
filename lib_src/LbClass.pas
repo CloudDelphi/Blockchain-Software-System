@@ -102,8 +102,7 @@ type
     {$ENDIF}
     procedure GenerateRandomKey; virtual; abstract;
   public {properties}
-    property CipherMode : TLbCipherMode
-               read FCipherMode write FCipherMode;
+    property CipherMode : TLbCipherMode read FCipherMode write FCipherMode;
   end;
 
 
@@ -264,8 +263,7 @@ type
 
   published {properties}
     property CipherMode;
-    property KeySize : TLbKeySizeRDL
-      read FKeySize write SetKeySize;
+    property KeySize : TLbKeySizeRDL read FKeySize write SetKeySize;
   end;
 
 
@@ -878,12 +876,13 @@ end;
 constructor TLbRijndael.Create(AOwner : TComponent);
 begin
   inherited Create(AOwner);
+  CipherMode:=cmCBC;
+  KeySize:=ks256;
 end;
 { -------------------------------------------------------------------------- }
 destructor TLbRijndael.Destroy;
 begin
   inherited Destroy;
-  KeySize := ks128;                                                    {!!.04}
 end;
 { -------------------------------------------------------------------------- }
 procedure TLbRijndael.DecryptFile(const InFile, OutFile : string);

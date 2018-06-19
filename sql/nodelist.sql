@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: scope.sql Version: 0.4.1.8                                  */
+/* PeopleRelay: nodelist.sql Version: 0.4.1.8                               */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -17,64 +17,73 @@
 /* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
-create generator P_G$Scope;
-/*-----------------------------------------------------------------------------------------------*/
-create table P_TScope(
-  RecId             TRid,
-  ACLId             TRid,
-  Address           TAddress not null,
-  SenderId          TSenderId not null,
-  Comment           TComment,
-  CreatedBy         TOperName,
-  ChangedBy         TOperName,
-  CreatedAt         TTimeMark,
-  ChangedAt         TTimeMark,
-  primary key       (RecId),
-  foreign key       (ACLId) references P_TACL(RecId)
-    on update       CASCADE
-    on delete       CASCADE);
-/*-----------------------------------------------------------------------------------------------*/
-create unique index P_XU$Scope on P_TScope(ACLId,Address,SenderId);
-/*-----------------------------------------------------------------------------------------------*/
 set term ^ ;
 /*-----------------------------------------------------------------------------------------------*/
-create trigger P_TBI$TScope for P_TScope active before insert position 0
+create procedure P_NodeList(RepKind TRepKind,Acceptor TBoolean)
+returns
+ (NRecId            TRef,
+  Accept            TBoolean,
+  NodeId            TNodeId,
+  SigHash           TIntHash,
+  IP                TIPV6str,
+  APort             TPort,
+  ExtAcc            TUserName,
+  ExtPWD            TPWD,
+  FullPath          TFullPath)
 as
 begin
-  if (new.RecId is null) then new.RecId = gen_id(P_G$Scope,1);
-  new.CreatedBy = CURRENT_USER;
-  new.CreatedAt = UTCTime();
-  new.ChangedBy = new.CreatedBy;
-  new.ChangedAt = new.CreatedAt;
+  if ((RepKind <> 2
+      and (select Broadband from P_TParams) = 1)
+    or (RepKind = 3
+      and not exists (select 1 from P_TNode where Acceptor = 1)))
+  then
+    Acceptor = 0;
+
+  for select
+     RecId,
+     Acceptor,
+     NodeId,
+     Hash(LoadSig),
+     Ip,
+     APort,
+     ExtAcc,
+     ExtPWD,
+     FullPath
+    from
+      P_TNode
+    where Enabled = 1
+      and Status >= 0
+      and Dimmed = 0
+      and (:Acceptor = 0 or Acceptor = 1)
+    order by
+      (select Result from P_NodeRating(RecId,NodeId)) desc,rand()
+    into
+      :NRecId,
+      :Accept,
+      :NodeId,
+      :SigHash,
+      :IP,
+      :APort,
+      :ExtAcc,
+      :ExtPWD,
+      :FullPath
+  do
+    suspend;
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create trigger P_TBU$TScope for P_TScope active before update position 0
+create procedure P_NodeCacheHit(Acceptor TBoolean,NodeId TNodeId)
+returns
+  (Result TBoolean)
 as
 begin
-  new.RecId = old.RecId;
-  new.CreatedBy = old.CreatedBy;
-  new.CreatedAt = old.CreatedAt;
-  new.ChangedBy = CURRENT_USER;
-  new.ChangedAt = UTCTime();
+  if (exists (select 1 from P_NodeList(0,:Acceptor) where NodeId = :NodeId)) then Result = 1;
 end^
 /*-----------------------------------------------------------------------------------------------*/
 set term ; ^
 /*-----------------------------------------------------------------------------------------------*/
-create view P_MyScope(
-  RecId,
-  Address,
-  SenderId,
-  UserName)
-as
-  select
-    S.RecId,
-    S.Address,
-    S.SenderId,
-    L.Name
-  from
-    P_TScope S
-  inner join P_TACL L
-    on S.ACLId = L.RecId
-  where L.Name = CURRENT_USER;
-/*-----------------------------------------------------------------------------------------------*/
+grant select on P_TNode to procedure P_NodeList;
+grant select on P_TParams to procedure P_NodeList;
+grant execute on procedure P_NodeRating to procedure P_NodeList;
 
+grant execute on procedure P_NodeList to procedure P_NodeCacheHit;
+/*-----------------------------------------------------------------------------------------------*/

@@ -1,7 +1,7 @@
-/* ************************************************************************ */
-/* PeopleRelay: declare.sql Version: see version.sql                        */
+/* ======================================================================== */
+/* PeopleRelay: declare.sql Version: 0.4.1.8                                */
 /*                                                                          */
-/* Copyright 2017 Aleksei Ilin & Igor Ilin                                  */
+/* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License");          */
 /* you may not use this file except in compliance with the License.         */
@@ -14,18 +14,19 @@
 /* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. */
 /* See the License for the specific language governing permissions and      */
 /* limitations under the License.                                           */
-/* ************************************************************************ */
+/* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
 set term ^ ;
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_GetNodeHash(
   NodeId TNodeId,
-  Alias TNdAlias,  
+  Alias TNdAlias,
   Acceptor TBoolean,
   APort TPort,
-  AUser TUserName,
-  APWD TPWD)
+  APath TPath,
+  ExtAcc TUserName,
+  ExtPWD TPWD)
 returns
   (Result TChHash)
 as
@@ -52,8 +53,15 @@ begin
   exit;
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_ClearRegLog2
+create procedure P_ClearRegAim
 as
+begin
+  exit;
+end^
+/*-----------------------------------------------------------------------------------------------*/
+create procedure P_ResetRegAim(Acceptor TBoolean)
+as
+  declare VoteLim TCount;
 begin
   exit;
 end^
@@ -79,7 +87,7 @@ begin
   exit;
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_RevertBlock(RecId TRid,SId TSenderId,BId TBlockId)
+create procedure P_RevertBlock(BlockNo TRid,SndId TSenderId,BId TBlockId)
 as
 begin
   exit;
@@ -90,6 +98,12 @@ as
 begin
   exit;
 end^
+/*-----------------------------------------------------------------------------------------------*/
+create procedure P_ClearMeltingPot
+as
+begin
+  exit;
+end^  
 /*-----------------------------------------------------------------------------------------------*/
 set term ; ^
 /*-----------------------------------------------------------------------------------------------*/

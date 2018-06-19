@@ -2245,10 +2245,17 @@ begin
   Sk := Min(KeySize, SizeOf(Context.Rk));
   Move(Key, Context.Rk, Sk);
   Nk := KeySize div 4;       { # key columns }
-  if (Nk > RDLNk256) then
+
+  if (Nk > RDLNk256)
+  then
     Nk := RDLNk256
-  else if (Nk < RDLNk128) then
-    Nk := RDLNk128;
+  else
+    if (Nk < RDLNk128)
+    then
+      Nk := RDLNk128
+    else
+      if (Nk > RDLNk128) and (Nk < RDLNk256) then Nk := RDLNk192; {iie}
+
   Context.Rounds := 6 + Nk;
 
   { expand key into round keys }

@@ -1,7 +1,7 @@
-/* ************************************************************************ */
-/* PeopleRelay: node.sql Version: see version.sql                           */
+/* ======================================================================== */
+/* PeopleRelay: debug.sql Version: 0.4.1.8                                  */
 /*                                                                          */
-/* Copyright 2017 Aleksei Ilin & Igor Ilin                                  */
+/* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License");          */
 /* you may not use this file except in compliance with the License.         */
@@ -14,7 +14,7 @@
 /* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. */
 /* See the License for the specific language governing permissions and      */
 /* limitations under the License.                                           */
-/* ************************************************************************ */
+/* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
 create generator P_G$Debug;
@@ -43,7 +43,7 @@ begin
   if (new.RecId is null) then new.RecId = gen_id(P_G$Debug,1);
 
   new.CreatedBy = CURRENT_USER;
-  new.CreatedAt = CURRENT_TIMESTAMP;
+  new.CreatedAt = UTCTime();
   new.ChangedBy = new.CreatedBy;
   new.ChangedAt = new.CreatedAt;
   new.TransId = CURRENT_TRANSACTION;      

@@ -1,7 +1,7 @@
-/* ************************************************************************ */
-/* PeopleRelay: system.sql Version: see version.sql                         */
+/* ======================================================================== */
+/* PeopleRelay: system.sql Version: 0.4.1.8                                 */
 /*                                                                          */
-/* Copyright 2017 Aleksei Ilin & Igor Ilin                                  */
+/* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License");          */
 /* you may not use this file except in compliance with the License.         */
@@ -14,7 +14,7 @@
 /* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. */
 /* See the License for the specific language governing permissions and      */
 /* limitations under the License.                                           */
-/* ************************************************************************ */
+/* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
 create view SYS_FieldInfo(
@@ -136,7 +136,7 @@ as
   declare s TSysStr255;
 begin
   select
-      Upper(Substring(Trim(mon$remote_address) from 1 for 39))
+      Substring(Trim(mon$remote_address) from 1 for 39)
     from
       mon$attachments
     where
@@ -158,7 +158,7 @@ returns
 as
 begin
   select
-      Upper(Trim(mon$remote_protocol))
+      Trim(mon$remote_protocol)
     from
       mon$attachments
     where
@@ -173,7 +173,7 @@ returns
 as
 begin
   select
-      Upper(Trim(mon$database_name))
+      Trim(mon$database_name)
     from
       mon$database
     into :Result;
@@ -282,10 +282,23 @@ begin
   if ((select Result from SYS_IsSU(:AUser)) = 1) then exception P_E$ExtAcc;
 end^
 /*-----------------------------------------------------------------------------------------------*/
+create procedure SYS_CheckRepack
+as
+begin
+  if ((select count(*)
+    from rdb$procedures) <> gen_id(rdb$procedures,0)) then exception P_E$Repack;
+end^
+/*-----------------------------------------------------------------------------------------------*/
+/*
+execute procedure SYS_CheckDB('127.0.0.1/3050:c:\database\PeopleRelay1.fb','SYSDBA','masterkey')
+
+rdb$procedure_id field value changed after backup / restore
+because of chnaging the rdb$procedures generator.
+*/
 create procedure SYS_CheckDB(
-  DB TFullPath,
-  Usr TUserName,
-  PWD TPWD)
+  A_DB TFullPath,
+  A_USR TUserName,
+  A_PWD TPWD)
 returns
   (Result TTrilean)
 as
@@ -294,11 +307,13 @@ as
   declare pid SmallInt;
   declare tia SmallInt;
   declare pnm TSysStr31;
+  declare ept TSysStr31;  
+  declare mnm TSysStr255;  
   declare stm TSysStr128;
 begin
   stm = 'select rdb$procedure_name,rdb$procedure_id,Hash(rdb$procedure_blr) from rdb$procedures';
   for execute statement stm
-    on external DB as user Usr password PWD
+    on external A_DB as user A_USR password A_PWD
     into :pnm,:pid,:h
   do
     if (not exists (
@@ -313,9 +328,10 @@ begin
         Result = 0;
         exit;
       end
+
   stm = 'select rdb$trigger_name,rdb$trigger_type,rdb$trigger_inactive,Hash(rdb$trigger_blr) from rdb$triggers';
   for execute statement stm
-    on external DB as user Usr password PWD
+    on external A_DB as user A_USR password A_PWD
     into :pnm,:pid,:tia,:h
   do
     if (not exists (
@@ -331,81 +347,169 @@ begin
         Result = 0;
         exit;
       end
+
+  stm = 'select rdb$function_name,rdb$module_name,rdb$entrypoint,rdb$return_argument from rdb$functions';
+  for execute statement stm
+    on external A_DB as user A_USR password A_PWD
+    into :pnm,:mnm,:ept,:pid
+  do
+    if (not exists (
+      select 1
+        from
+          rdb$functions
+        where rdb$function_name = :pnm
+          and rdb$module_name = :mnm
+          and rdb$entrypoint = :ept
+          and rdb$return_argument = :pid))
+    then
+      begin
+        Result = 0;
+        exit;
+      end
+
   Result = 1;
   when any do Result = -1;
+end^
+/*-----------------------------------------------------------------------------------------------*/
+/*
+rdb$procedure_id field value changed after backup / restore
+because of chnaging the rdb$procedures generator.
+
+select count(*) from rdb$procedures
+select gen_id(rdb$procedures,0) from rdb$database
+
+select gen_id(rdb$trigger_name,0) from rdb$database
+select Result from SYS_MetaHash
+*/
+
+create procedure SYS_MetaHash
+returns
+  (Result BigInt)
+as
+  declare h1 BigInt;
+  declare h2 BigInt;
+  declare h3 BigInt;
+begin
+  h1 = Hash(
+    (select
+      List(Trim(rdb$procedure_name) || '-' ||
+      rdb$procedure_id || '-' ||
+      Hash(rdb$procedure_blr),'-')
+    from
+      rdb$procedures));
+
+  h2 = Hash(
+    (select
+      List(Trim(rdb$trigger_name) || '-' ||
+      rdb$trigger_type || '-' ||
+      coalesce(rdb$trigger_inactive,'0') || '-' ||
+      Hash(rdb$trigger_blr),'-')
+    from
+      rdb$triggers));
+
+  h3 = Hash(
+    (select
+      List(Trim(rdb$function_name) || '-' ||
+      rdb$module_name || '-' ||
+      rdb$entrypoint || '-' ||
+      rdb$return_argument,'-')
+    from
+      rdb$functions));
+
+  Result = Hash(h1 || '-' || h2 || '-' || h3);
+
+  suspend;
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure SYS_RevokeAll(AUser TSysStr31)
 as
 begin
-  if (AUser is not null) then
+  if (AUser is not null
+    and AUser <> '-')
+  then
     execute statement 'revoke all on all from ' || AUser;
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure SYS_DropAcc(AUser TSysStr31)
 as
 begin
-  if (AUser is not null) then
-  begin
-    AUser = Upper(AUser);
-    if (AUser <> 'SYSDBA'
-      and (select Result from SYS_IsDBOwner(:AUser)) = 0)
-    then
-      in autonomous transaction do
-      begin
-        execute procedure SYS_RevokeAll(AUser);
-        execute statement 'drop user '|| AUser;
-      end
-    when any do exit;
-  end
+  if (AUser is not null
+    and AUser <> '-')
+  then
+    begin
+      AUser = Upper(AUser);
+      if (AUser <> 'SYSDBA'
+        and (select Result from SYS_IsDBOwner(:AUser)) = 0)
+      then
+        in autonomous transaction do
+        begin
+          execute procedure SYS_RevokeAll(AUser);
+          execute statement 'drop user '|| AUser;
+        end
+      when any do exit;
+    end
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure SYS_AltAcc(AUser TSysStr31,APWD TSysStr31)
 as
 begin
-  if (AUser is not null and APWD is not null) then
-  begin
-    in autonomous transaction do
-      execute statement 'create user ' || AUser || ' password ''' || APWD ||'''';
-    when any do
-      execute statement 'alter user ' || AUser || ' password ''' || APWD ||'''';
-  end
+  if (AUser is not null
+    and AUser <> '-'
+    and APWD is not null
+    and Char_Length(APWD) > 3)
+  then
+    begin
+      in autonomous transaction do
+        execute statement 'create user ' || AUser || ' password ''' || APWD ||'''';
+      when any do
+        execute statement 'alter user ' || AUser || ' password ''' || APWD ||'''';
+    end
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure SYS_AltAdmAcc(AUser TSysStr31,APWD TSysStr31)
 as
   declare sg TsysStr32;
 begin
-  if (AUser is not null and APWD is not null) then
-  begin
-    AUser = Upper(AUser);
-    if (AUser <> 'SYSDBA'
-      and (select Result from SYS_IsDBOwner(:AUser)) = 0)
-    then
-      begin
+  if (AUser is not null
+    and AUser <> '-'
+    and APWD is not null
+    and Char_Length(APWD) > 3)
+  then
+    begin
+      AUser = Upper(AUser);
+      if (AUser <> 'SYSDBA'
+        and (select Result from SYS_IsDBOwner(:AUser)) = 0)
+      then
         begin
-          sg = ' grant admin role';
-          in autonomous transaction do
-            execute statement 'create user '|| AUser ||' password ''' || APWD || '''' || sg;
-          when any do
-            execute statement 'alter user ' || AUser ||' password ''' || APWD || '''' || sg;
+          begin
+            sg = ' grant admin role';
+            in autonomous transaction do
+              execute statement 'create user '|| AUser ||' password ''' || APWD || '''' || sg;
+            when any do
+              execute statement 'alter user ' || AUser ||' password ''' || APWD || '''' || sg;
+          end
+          execute statement 'grant RDB$ADMIN to ' || AUser;
         end
-        execute statement 'grant RDB$ADMIN to ' || AUser;
-      end
-  end
+    end
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure SYS_GrantExec(AProc TSysStr31, AUser TSysStr31)
 as
 begin
-  if (AProc is not null and AUser is not null) then
+  if (AProc is not null
+    and AUser is not null
+    and AUser <> '-')
+  then
     execute statement 'grant execute on procedure ' || AProc || ' to ' || AUser;
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure SYS_GrantView(ARel TSysStr31, AUser TSysStr31)
 as
 begin
-  if (ARel is not null and AUser is not null) then
+  if (ARel is not null
+    and AUser is not null
+    and AUser <> '-')
+  then
     execute statement 'grant select on ' || ARel || ' to ' || AUser;
 end^
 /*-----------------------------------------------------------------------------------------------*/
@@ -562,7 +666,6 @@ grant execute on procedure SYS_IsDbOwner to procedure SYS_IsSU;
 grant execute on procedure SYS_IsRDB$ADMIN to procedure SYS_IsSU;
 
 grant execute on procedure SYS_IsSU to procedure SYS_CheckExtAcc;
-grant execute on procedure SYS_UnixTMNow to PUBLIC;
 
 grant execute on procedure SymbList to procedure SYS_IpStrToBin;
 grant execute on procedure Math_IntToBin to procedure SYS_IpStrToBin;

@@ -1,7 +1,7 @@
-/* ************************************************************************ */
-/* PeopleRelay: archive.sql Version: see version.sql                        */
+/* ======================================================================== */
+/* PeopleRelay: archive.sql Version: 0.4.1.8                                */
 /*                                                                          */
-/* Copyright 2017 Aleksei Ilin & Igor Ilin                                  */
+/* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License");          */
 /* you may not use this file except in compliance with the License.         */
@@ -14,11 +14,11 @@
 /* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. */
 /* See the License for the specific language governing permissions and      */
 /* limitations under the License.                                           */
-/* ************************************************************************ */
+/* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
 create table P_TArchLog(
-  RecId             TRid,
+  BlockNo           TRid,
   Checksum          TIntHash not null,
   SelfHash          TChHash not null,
   BlockId           TBlockId not null,
@@ -29,28 +29,28 @@ create table P_TArchLog(
   ChangedBy         TOperName,
   CreatedAt         TTimeMark,
   ChangedAt         TTimeMark,
-  primary key       (RecId),
-  foreign key       (RecId,Checksum,SelfHash) references P_TChain(RecId,Checksum,SelfHash)
+  primary key       (BlockNo),
+  foreign key       (BlockNo,Checksum,SelfHash) references P_TChain(BlockNo,Checksum,SelfHash)
     on update       CASCADE
     on delete       CASCADE);
 /*-----------------------------------------------------------------------------------------------*/
 set term ^ ;
 /*-----------------------------------------------------------------------------------------------*/
-create or alter procedure P_Truncate(RecId TRid)
+create or alter procedure P_Truncate(BlockNo TRid)
 as
 begin
   if ((select Result from P_BegTrim) = 1) then
   begin
     update P_TChain
       set
-        ParRecId = 0,
+        ParBlkNo = 0,
         ParChsum = '0',
         PrntHash = '0'
-      where RecId <= :RecId
-        and RecId > 0
-        and ParRecId > 0
-      order by RecId desc;
-    delete from P_TChain where RecId > 0 and RecId < :RecId;
+      where BlockNo <= :BlockNo
+        and BlockNo > 0
+        and ParBlkNo > 0
+      order by BlockNo desc;
+    delete from P_TChain where BlockNo > 0 and BlockNo < :BlockNo;
     execute procedure P_EndTrim;
   end
 

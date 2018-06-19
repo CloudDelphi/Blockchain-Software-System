@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: inet.sql Version: 0.4.1.8                                   */
+/* PeopleRelay: _build.sql Version: 0.4.1.8                                 */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -16,29 +16,59 @@
 /* limitations under the License.                                           */
 /* ======================================================================== */
 
-/*-----------------------------------------------------------------------------------------------*/
-set term ^ ;
-/*-----------------------------------------------------------------------------------------------*/
-/*
-select Result from P_IsOnline('google.com',80)
-*/
-create procedure P_IsOnline(IP TIPV6str,APort TUInt)
-returns
-  (Result TBoolean)
-as
-  declare Timeout TUInt;
-begin
-  select IpTimeout from P_TParams into :Timeout;
-  if (Timeout > 0)
-  then
-    Result = CanConnect(Ip,APort,Timeout);
-  else
-    Result = 1;
-  suspend;  
-end^
-/*-----------------------------------------------------------------------------------------------*/
-set term ; ^
-/*-----------------------------------------------------------------------------------------------*/
-grant select on P_TParams to procedure P_IsOnline;
-/*-----------------------------------------------------------------------------------------------*/
+input create.sql;
+input domains.sql;
+input excepts.sql;
+input declare.sql;
+input str_util.sql;
+input udfutil.sql;
+input math.sql;
+input dateutil.sql;
+input system.sql;
+input flags.sql;
 
+--  input debug.sql;
+
+input params.sql;
+input inet.sql;
+
+input vars.sql;
+input account.sql;
+input scope.sql;
+input dbmon.sql;
+input log.sql;
+input params_log.sql;
+input params_imp.sql;
+
+input node.sql;
+input chain.sql;
+input quorum.sql;
+input nodelist.sql;
+input nodeutil.sql;
+input nodelog.sql;
+input reglog.sql;
+
+input check_log.sql;
+input check.sql;
+input ndvote.sql;
+input smvote.sql;
+input mpvote.sql;
+--input state_machine.sql;
+input repair.sql;
+input payload.sql;
+input pow.sql;
+input controlset.sql;
+input replicator.sql;
+
+input archive.sql;
+
+input state_machine.sql;
+input sync.sql;
+input ipban.sql;
+input security.sql;
+
+input stats.sql;
+
+input sysdata.sql;
+input version.sql;
+input grantsys.sql;

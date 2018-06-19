@@ -1,7 +1,7 @@
-/* ************************************************************************ */
-/* PeopleRelay: fb3.sql Version: see version.sql                            */
+/* ======================================================================== */
+/* PeopleRelay: fb3.sql Version: 0.4.1.8                                    */
 /*                                                                          */
-/* Copyright 2017 Aleksei Ilin & Igor Ilin                                  */
+/* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License");          */
 /* you may not use this file except in compliance with the License.         */
@@ -14,14 +14,15 @@
 /* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. */
 /* See the License for the specific language governing permissions and      */
 /* limitations under the License.                                           */
-/* ************************************************************************ */
+/* ======================================================================== */
 
 --Not in use.
 
 /*-----------------------------------------------------------------------------------------------*/
 grant execute on function sha_blob to procedure P_CalcHash;
-grant execute on function rsasig to procedure P_CalcSig;
-grant execute on function sigver to procedure P_IsSigValid;
+grant execute on function rsasig to procedure P_SysSig;
+grant execute on function rsasig to procedure P_BlockSig;
+grant execute on function sigver to procedure P_IsSysSig;
 grant execute on function rsakey to procedure P_RsaKey;
 grant execute on function StrToUTF_256 to procedure P_StrToUTF;
 grant execute on function StrToAnsi_256 to procedure P_StrToAnsi;
@@ -42,7 +43,7 @@ grant usage on exception P_E$TableHasData to PUBLIC;
 grant usage on exception P_E$OneRecNeeded to PUBLIC;
 grant usage on exception P_E$MaxIdlConn to PUBLIC;
 grant usage on exception P_E$MaxActConn to PUBLIC;
-grant usage on exception P_E$UnknownUser to PUBLIC;
+grant usage on exception P_E$Connection to PUBLIC;
 grant usage on exception P_E$ServiceNA to PUBLIC;
 grant usage on exception P_E$ExtAcc to PUBLIC;
 
@@ -77,8 +78,8 @@ grant usage on sequence P_G$STM to procedure P_IsSyncSpan;
 grant usage on sequence P_G$SDU to procedure P_CheckPOR;
 grant usage on sequence P_G$SDU to procedure P_RoundTrip;
 
+grant usage on sequence P_G$RTT to procedure P_Sweep;
 grant usage on sequence P_G$RTT to procedure P_RoundTrip;
-grant usage on sequence P_G$RTT to procedure P_CheckLimbo;
 grant usage on sequence P_G$RTT to trigger P_TBI$TBacklog;
 grant usage on sequence P_G$RTT to trigger P_TBI$TNodeLog;
 grant usage on sequence P_G$RTT to trigger P_TBI$TMeltingPot;

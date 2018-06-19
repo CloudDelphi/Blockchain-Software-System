@@ -1,7 +1,7 @@
-/* ************************************************************************ */
-/* PeopleRelay: vars.sql Version: see version.sql                                 */
+/* ======================================================================== */
+/* PeopleRelay: vars.sql Version: 0.4.1.8                                   */
 /*                                                                          */
-/* Copyright 2017 Aleksei Ilin & Igor Ilin                                  */
+/* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License");          */
 /* you may not use this file except in compliance with the License.         */
@@ -14,13 +14,14 @@
 /* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. */
 /* See the License for the specific language governing permissions and      */
 /* limitations under the License.                                           */
-/* ************************************************************************ */
+/* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
-create generator P_G$DTM;
-create generator P_G$STM;
-create generator P_G$SDU;
-create generator P_G$RTT;
+create generator P_G$DTM; --Unix Days
+create generator P_G$HTM; --Hour
+create generator P_G$STM; --Unix Time
+create generator P_G$SDU; --Avg Sync proc exec time in secs
+create generator P_G$RTT; --Round Trip
 /*-----------------------------------------------------------------------------------------------*/
 create global temporary table P_TSesIP(
   IP              TIPV6str not null
@@ -58,6 +59,9 @@ begin
   suspend;
 end^
 /*-----------------------------------------------------------------------------------------------*/
+/*
+If sync scheduler or computer was turned off then P_G$STM is not changed until next P_RoundTrip call.
+*/
 create procedure P_SyncPOR(AGap BigInt)
 returns
   (Result TBoolean)

@@ -52,8 +52,8 @@ type                                                                            
   TProgressProc = procedure(CurPostion, TotalSize: longint);                    {!!.06a}
 
 var                                                                             {!!.06a}
-  LbOnProgress : TProgressProc;                                                 {!!.06a}
-  LbProgressSize: Longint;                                                      {!!.06a}
+  LbOnProgress : TProgressProc = nil;                                           {!!.06a}{iie}
+  LbProgressSize: Longint = 64;                                                 {!!.06a}{iie}
 
 { high level encryption routines }
 procedure BFEncryptFile(const InFile, OutFile : string;
@@ -1395,8 +1395,9 @@ begin
 end;
 
 
-
+(*iie
 begin                                                                           {!!.06a}
   LbOnProgress := nil;                                                          {!!.06a}
   LbProgressSize := 64;                                                         {!!.06a}
+*)
 end.

@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: scope.sql Version: 0.4.1.8                                  */
+/* PeopleRelay: make_app.sql Version: 0.4.1.8                               */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -17,64 +17,22 @@
 /* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
-create generator P_G$Scope;
+execute procedure P_InitTransponder;
+commit work;
 /*-----------------------------------------------------------------------------------------------*/
-create table P_TScope(
-  RecId             TRid,
-  ACLId             TRid,
-  Address           TAddress not null,
-  SenderId          TSenderId not null,
-  Comment           TComment,
-  CreatedBy         TOperName,
-  ChangedBy         TOperName,
-  CreatedAt         TTimeMark,
-  ChangedAt         TTimeMark,
-  primary key       (RecId),
-  foreign key       (ACLId) references P_TACL(RecId)
-    on update       CASCADE
-    on delete       CASCADE);
+input fields.sql;
+commit work;
 /*-----------------------------------------------------------------------------------------------*/
-create unique index P_XU$Scope on P_TScope(ACLId,Address,SenderId);
+execute procedure P_Build;
+commit work;
 /*-----------------------------------------------------------------------------------------------*/
-set term ^ ;
+input dbext.sql;
+commit work;
 /*-----------------------------------------------------------------------------------------------*/
-create trigger P_TBI$TScope for P_TScope active before insert position 0
-as
-begin
-  if (new.RecId is null) then new.RecId = gen_id(P_G$Scope,1);
-  new.CreatedBy = CURRENT_USER;
-  new.CreatedAt = UTCTime();
-  new.ChangedBy = new.CreatedBy;
-  new.ChangedAt = new.CreatedAt;
-end^
+input set_params.sql;
+commit work;
 /*-----------------------------------------------------------------------------------------------*/
-create trigger P_TBU$TScope for P_TScope active before update position 0
-as
-begin
-  new.RecId = old.RecId;
-  new.CreatedBy = old.CreatedBy;
-  new.CreatedAt = old.CreatedAt;
-  new.ChangedBy = CURRENT_USER;
-  new.ChangedAt = UTCTime();
-end^
-/*-----------------------------------------------------------------------------------------------*/
-set term ; ^
-/*-----------------------------------------------------------------------------------------------*/
-create view P_MyScope(
-  RecId,
-  Address,
-  SenderId,
-  UserName)
-as
-  select
-    S.RecId,
-    S.Address,
-    S.SenderId,
-    L.Name
-  from
-    P_TScope S
-  inner join P_TACL L
-    on S.ACLId = L.RecId
-  where L.Name = CURRENT_USER;
+input prod_ver.sql;
+commit work;
 /*-----------------------------------------------------------------------------------------------*/
 

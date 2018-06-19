@@ -1,7 +1,7 @@
-/* ************************************************************************ */
-/* PeopleRelay: smvote.sql Version: see version.sql                         */
+/* ======================================================================== */
+/* PeopleRelay: smvote.sql Version: 0.4.1.8                                 */
 /*                                                                          */
-/* Copyright 2017 Aleksei Ilin & Igor Ilin                                  */
+/* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License");          */
 /* you may not use this file except in compliance with the License.         */
@@ -14,7 +14,7 @@
 /* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. */
 /* See the License for the specific language governing permissions and      */
 /* limitations under the License.                                           */
-/* ************************************************************************ */
+/* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
 create generator P_G$SMV;
@@ -22,28 +22,30 @@ create generator P_G$SMV;
 create table P_TSMVoter(
   RecId             TRid,
   ParId             TRid,
-
-  SenderId          TSenderId not null,  
-  BlockId           TBlockId not null,
-
+  BlockNo           TRid,
+  SelfHash          TChHash not null,
   NodeId            TNodeId not null,
   Acceptor          TBoolean,
-  CreatedAt         TTimeMark default CURRENT_TIMESTAMP not null,
+  RT                TCount,
+  CreatedAt         TTimeMark not null,
   primary key       (RecId),
   foreign key       (ParId) references P_TBackLog(RecId)
     on update       CASCADE
     on delete       CASCADE);
 /*-----------------------------------------------------------------------------------------------*/
-create unique index P_XU$SMV1 on P_TSMVoter(ParId,SenderId,BlockId,NodeId);
+create unique index P_XU$SMV1 on P_TSMVoter(ParId,NodeId);
 /*-----------------------------------------------------------------------------------------------*/
 set term ^ ;
 /*-----------------------------------------------------------------------------------------------*/
 create trigger P_TBI$TSMVoter for P_TSMVoter active before insert position 0
 as
 begin
+  new.CreatedAt = UTCTime();
+  new.RT = Gen_Id(P_G$RTT,0);
   new.RecId = gen_id(P_G$SMV,1);
 end^
 /*-----------------------------------------------------------------------------------------------*/
 set term ; ^
 /*-----------------------------------------------------------------------------------------------*/
-
+create view P_SMVoter as select * from P_TSMVoter;
+/*-----------------------------------------------------------------------------------------------*/

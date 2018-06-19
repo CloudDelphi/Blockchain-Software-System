@@ -1,7 +1,7 @@
-/* ************************************************************************ */
-/* PeopleRelay: check_log.sql Version: see version.sql                      */
+/* ======================================================================== */
+/* PeopleRelay: check_log.sql Version: 0.4.1.8                              */
 /*                                                                          */
-/* Copyright 2017 Aleksei Ilin & Igor Ilin                                  */
+/* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License");          */
 /* you may not use this file except in compliance with the License.         */
@@ -14,7 +14,7 @@
 /* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. */
 /* See the License for the specific language governing permissions and      */
 /* limitations under the License.                                           */
-/* ************************************************************************ */
+/* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
 create generator P_G$Checks;
@@ -34,7 +34,7 @@ as
 begin
   new.RecId = gen_id(P_G$Checks,1);
   new.CreatedBy = CURRENT_USER;
-  new.CreatedAt = CURRENT_TIMESTAMP;
+  new.CreatedAt = UTCTime();
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create trigger P_TBU$TChecks for P_TChecks active before update position 0
@@ -63,7 +63,7 @@ as
 begin
   new.RecId = gen_id(P_G$ChkLog,1);
   new.CreatedBy = CURRENT_USER;
-  new.CreatedAt = CURRENT_TIMESTAMP;
+  new.CreatedAt = UTCTime();
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create trigger P_TBU$TChkLog for P_TChkLog active before update position 0
