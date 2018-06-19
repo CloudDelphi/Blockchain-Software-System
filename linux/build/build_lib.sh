@@ -1,0 +1,44 @@
+#!/bin/bash
+# ======================================================================== #
+# PeopleRelay: build_lib.sh Version: 0.4.1.8                               #
+#                                                                          #
+# Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             #
+#                                                                          #
+# Licensed under the Apache License, Version 2.0 (the "License");          #
+# you may not use this file except in compliance with the License.         #
+# You may obtain a copy of the License at                                  #
+#                                                                          #
+#     http://www.apache.org/licenses/LICENSE-2.0                           #
+#                                                                          #
+# Unless required by applicable law or agreed to in writing, software      #
+# distributed under the License is distributed on an "AS IS" BASIS,        #
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. #
+# See the License for the specific language governing permissions and      #
+# limitations under the License.                                           #
+# ======================================================================== #
+
+s_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+prm="./build.conf"
+bin="${s_dir}/../lib_bin/"
+tmp="${s_dir}/../tmp/"
+log="${s_dir}/../tmp/lib_log.txt"
+
+cd "$s_dir"
+
+if [ -r "$prm" ]
+    then
+        source "$prm"
+        
+        if [ -f "$log" ]
+            then
+                rm "$log"
+        fi
+        
+        cd ../../lib_src
+        
+        "$fpc_path$fpc" -Mdelphi -Xs -O2 -FU"$tmp" -o"${bin}/pr_udf.so" ./pr_udf.dpr > "$log"
+        
+    else
+        echo "Could not find file $prm"
+        
+fi
