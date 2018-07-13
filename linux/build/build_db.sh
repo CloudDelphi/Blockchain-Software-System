@@ -1,6 +1,6 @@
 #!/bin/bash
 # ======================================================================== #
-# PeopleRelay: build_db.sh Version: 0.4.1.8                                #
+# PeopleRelay: build_db.sh Version: 0.4.3.6                                #
 #                                                                          #
 # Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             #
 #                                                                          #

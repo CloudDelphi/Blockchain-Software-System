@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: domains.sql Version: 0.4.1.8                                */
+/* PeopleRelay: domains.sql Version: 0.4.3.6                                */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -34,7 +34,6 @@ create domain TSig as VarChar(172) CHARACTER SET WIN1252 COLLATE PXW_INTL; -- 17
 
 create domain TSenderId as VarChar(44) CHARACTER SET WIN1252 COLLATE PXW_INTL;
 /*-----------------------------------------------------------------------------------------------*/
-create domain TPercent as Float default 0.000 check(value >= 0 and value <= 100) not null;
 create domain TBoolean as SmallInt default 0 check(value in (0,1)) not null;
 create domain TTrilean as SmallInt default -1 check(value in (-1, 0, 1)) not null;
 create domain TUInt as Integer default 0 check(value>=0) not null;

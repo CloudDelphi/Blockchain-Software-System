@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: excepts.sql Version: 0.4.1.8                                */
+/* PeopleRelay: excepts.sql Version: 0.4.3.6                                */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -25,7 +25,7 @@ create exception P_E$ShortPWD 'The password is too short. Minimum password lengt
 /*
 create exception P_E$BadNodeData 'Incorrect Node Data.';
 create exception P_E$BadNodeId 'Incorrect NodeId.';
-create exception P_E$BadLcSig 'Incorrect Local Sig.';
+create exception P_E$BadTmpSig 'Incorrect Temp Sig.';
 create exception P_E$BadNodeSig 'Incorrect Node Sig.';
 */
 
@@ -41,4 +41,5 @@ create exception P_E$ExtAcc 'Cannot set SU as external Account.';
 create exception P_E$ExtAccIns 'Cannot directly set an external Account - use P_TParams table.';
 create exception P_E$SyncBotAcc 'Sync Bot account already exists.';
 create exception P_E$NewBlock 'NewBlock error.';
+create exception P_E$SelfNode 'Cannot use Self Node as a Peer Node.';
 /*-----------------------------------------------------------------------------------------------*/

@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: _build.sql Version: 0.4.1.8                                 */
+/* PeopleRelay: _build.sql Version: 0.4.3.6                                 */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -17,6 +17,7 @@
 /* ======================================================================== */
 
 input create.sql;
+input sys_sec.sql;
 input domains.sql;
 input excepts.sql;
 input declare.sql;
@@ -40,17 +41,17 @@ input log.sql;
 input params_log.sql;
 input params_imp.sql;
 
-input node.sql;
+input peer.sql;
 input chain.sql;
 input quorum.sql;
-input nodelist.sql;
+input peerlist.sql;
 input nodeutil.sql;
-input nodelog.sql;
+input peerlog.sql;
+
 input reglog.sql;
 
 input check_log.sql;
 input check.sql;
-input ndvote.sql;
 input smvote.sql;
 input mpvote.sql;
 --input state_machine.sql;

@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: nodelist.sql Version: 0.4.3.6                               */
+/* PeopleRelay: peerlist.sql Version: 0.4.3.6                               */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -19,9 +19,9 @@
 /*-----------------------------------------------------------------------------------------------*/
 set term ^ ;
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_NodeList(RepKind TRepKind,Acceptor TBoolean)
+create procedure P_PeerList(RepKind TRepKind,Acceptor TBoolean)
 returns
- (NRecId            TRef,
+ (RecId             TRef,
   Accept            TBoolean,
   NodeId            TNodeId,
   SigHash           TIntHash,
@@ -31,59 +31,50 @@ returns
   ExtPWD            TPWD,
   FullPath          TFullPath)
 as
+  declare BB TBoolean;
+  declare SelfId TNodeId;
 begin
-  if ((RepKind <> 2
-      and (select Broadband from P_TParams) = 1)
-    or (RepKind = 3
-      and not exists (select 1 from P_TNode where Acceptor = 1)))
+  select NodeId,Broadband from P_TParams into :SelfId,:BB;
+  if ((RepKind <> 2 and BB = 1)
+    or (RepKind = 3 and not exists (select 1 from P_TPeer where Acceptor = 1)))
   then
     Acceptor = 0;
 
-  for select
-     RecId,
-     Acceptor,
-     NodeId,
-     Hash(LoadSig),
-     Ip,
-     APort,
-     ExtAcc,
-     ExtPWD,
-     FullPath
-    from
-      P_TNode
-    where Enabled = 1
-      and Status >= 0
-      and Dimmed = 0
-      and (:Acceptor = 0 or Acceptor = 1)
-    order by
-      (select Result from P_NodeRating(RecId,NodeId)) desc,rand()
-    into
-      :NRecId,
-      :Accept,
-      :NodeId,
-      :SigHash,
-      :IP,
-      :APort,
-      :ExtAcc,
-      :ExtPWD,
-      :FullPath
-  do
-    suspend;
-end^
-/*-----------------------------------------------------------------------------------------------*/
-create procedure P_NodeCacheHit(Acceptor TBoolean,NodeId TNodeId)
-returns
-  (Result TBoolean)
-as
-begin
-  if (exists (select 1 from P_NodeList(0,:Acceptor) where NodeId = :NodeId)) then Result = 1;
+    for select
+         RecId,
+         Acceptor,
+         NodeId,
+         SigHash,
+         Ip,
+         APort,
+         ExtAcc,
+         ExtPWD,
+         FullPath
+       from
+         P_TPeer
+       where NodeId <> :SelfId
+         and Enabled = 1
+         and Dimmed = 0
+         and Status >= 0
+         and (:Acceptor = 0 or Acceptor = 1)
+       order by
+         rand()
+       into
+         :RecId,
+         :Accept,
+         :NodeId,
+         :SigHash,
+         :IP,
+         :APort,
+         :ExtAcc,
+         :ExtPWD,
+         :FullPath
+    do
+      suspend;
 end^
 /*-----------------------------------------------------------------------------------------------*/
 set term ; ^
 /*-----------------------------------------------------------------------------------------------*/
-grant select on P_TNode to procedure P_NodeList;
-grant select on P_TParams to procedure P_NodeList;
-grant execute on procedure P_NodeRating to procedure P_NodeList;
-
-grant execute on procedure P_NodeList to procedure P_NodeCacheHit;
+grant select on P_TPeer to procedure P_PeerList;
+grant select on P_TParams to procedure P_PeerList;
 /*-----------------------------------------------------------------------------------------------*/

@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: sync.sql Version: 0.4.1.8                                   */
+/* PeopleRelay: sync.sql Version: 0.4.3.6                                   */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -117,7 +117,11 @@ end^
 create procedure P_HourJob
 as
 begin
-  exit;
+  if ((select Result from P_IsNewHour) = 1) then
+  begin
+    exit;
+  end
+
 /*
   execute procedure P_LogMsg(501,0,0,null,'P_HourJob',null,'Start',null);
   execute procedure P_ClearWorkLogs;
@@ -143,7 +147,7 @@ begin
   s = 'P_DoSync';
 
   begin
-    if ((select Result from P_IsNewHour) = 1) then execute procedure P_HourJob;
+    execute procedure P_HourJob;
     when any do
       execute procedure P_LogErr(-91,sqlcode,gdscode,sqlstate,s,null,'P_HourJob',null);
   end
@@ -283,7 +287,7 @@ begin
   execute procedure P_Sweep;
   execute procedure P_ClearReplLog;  
   execute procedure P_ClearAuxLogs;
-  execute procedure P_ClearNodeList;
+  execute procedure P_ClearPeerList;
   execute procedure P_ExitDJ;
   when any do
     execute procedure P_LogErr(-5,sqlcode,gdscode,sqlstate,'P_DoDailyJob',null,null,null);
@@ -337,7 +341,7 @@ grant execute on procedure P_ExitDJ to procedure P_DoDailyJob;
 grant execute on procedure P_EnterDJ to procedure P_DoDailyJob;
 grant execute on procedure P_ClearReplLog to procedure P_DoDailyJob;
 grant execute on procedure P_ClearAuxLogs to procedure P_DoDailyJob;
-grant execute on procedure P_ClearNodeList to procedure P_DoDailyJob;
+grant execute on procedure P_ClearPeerList to procedure P_DoDailyJob;
 
 grant execute on procedure P_LogMsg to procedure P_DailyJob;
 grant execute on procedure P_LogErr to procedure P_DailyJob;
@@ -346,6 +350,7 @@ grant execute on procedure P_FinishSync to procedure P_DailyJob;
 grant execute on procedure P_DoDailyJob to procedure P_DailyJob;
 
 grant execute on procedure P_LogMsg to procedure P_HourJob;
+grant execute on procedure P_IsNewHour to procedure P_HourJob;
 --grant execute on procedure P_ClearWorkLogs to procedure P_HourJob;
 
 grant select on P_TParams to procedure P_CanRunRepair;
@@ -357,7 +362,6 @@ grant execute on procedure P_Repair to procedure P_DoSync;
 grant execute on procedure P_HourJob to procedure P_DoSync;
 grant execute on procedure P_CheckPOR to procedure P_DoSync;
 grant execute on procedure P_PullData to procedure P_DoSync;
-grant execute on procedure P_IsNewHour to procedure P_DoSync;
 grant execute on procedure P_ClearLogs to procedure P_DoSync;
 grant execute on procedure P_CanRunRepair to procedure P_DoSync;
 

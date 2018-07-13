@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: archive.sql Version: 0.4.1.8                                */
+/* PeopleRelay: archive.sql Version: 0.4.3.6                                */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -19,8 +19,8 @@
 /*-----------------------------------------------------------------------------------------------*/
 create table P_TArchLog(
   BlockNo           TRid,
-  Checksum          TIntHash not null,
-  SelfHash          TChHash not null,
+  Chsum             TIntHash not null,
+  BHash             TChHash not null,
   BlockId           TBlockId not null,
   SenderId          TSenderId not null,
 
@@ -30,7 +30,7 @@ create table P_TArchLog(
   CreatedAt         TTimeMark,
   ChangedAt         TTimeMark,
   primary key       (BlockNo),
-  foreign key       (BlockNo,Checksum,SelfHash) references P_TChain(BlockNo,Checksum,SelfHash)
+  foreign key       (BlockNo,Chsum,BHash) references P_TChain(BlockNo,Chsum,BHash)
     on update       CASCADE
     on delete       CASCADE);
 /*-----------------------------------------------------------------------------------------------*/
@@ -45,7 +45,7 @@ begin
       set
         ParBlkNo = 0,
         ParChsum = '0',
-        PrntHash = '0'
+        ParBHash = '0'
       where BlockNo <= :BlockNo
         and BlockNo > 0
         and ParBlkNo > 0

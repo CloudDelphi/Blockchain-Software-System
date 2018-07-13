@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: ipban.sql Version: 0.4.1.8                                  */
+/* PeopleRelay: ipban.sql Version: 0.4.3.6                                  */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -37,30 +37,24 @@ create trigger P_TBI$TIpBan for P_TIpBan active before insert position 0
 as
 begin
   if (new.RecId is null) then new.RecId = gen_id(P_G$IpBan,1);
+  if (Trim(new.IP) = '') then new.IP = null; else new.IP = Upper(new.IP);
+
   new.CreatedBy = CURRENT_USER;
   new.CreatedAt = UTCTime();
   new.ChangedBy = new.CreatedBy;
   new.ChangedAt = new.CreatedAt;
-  if (new.IP = '')
-  then
-    new.IP = null;
-  else
-    new.IP = Upper(new.IP);
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create trigger P_TBU$TIpBan for P_TIpBan active before update position 0
 as
 begin
+  if (Trim(new.IP) = '') then new.IP = null; else new.IP = Upper(new.IP);
+  
   new.RecId = old.RecId;
   new.CreatedBy = old.CreatedBy;
   new.CreatedAt = old.CreatedAt;
   new.ChangedBy = CURRENT_USER;
   new.ChangedAt = UTCTime();
-  if (new.IP = '')
-  then
-    new.IP = null;
-  else
-    new.IP = Upper(new.IP);
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_IsIpBanned
@@ -69,9 +63,9 @@ returns
 as
   declare IP TIPV6str;
 begin
-  select IP from P_TSesIP into :IP;
-  IP = Upper(IP);
+  select Upper(IP) from P_TSesIP into :IP;
   select 1 from P_TIpBan where IP = :IP or :IP like IP || '%' into :Result;
+
   suspend;
 end^
 /*-----------------------------------------------------------------------------------------------*/

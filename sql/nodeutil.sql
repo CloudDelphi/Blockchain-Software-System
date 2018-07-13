@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: nodeutil.sql Version: 0.4.1.8                               */
+/* PeopleRelay: nodeutil.sql Version: 0.4.3.6                               */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -30,7 +30,7 @@ as
   declare ATest TRef;
   declare Msg TSysStr32;
 begin
-  if ((select Enabled from P_TNode where RecId = :RecId) = 1) then
+  if ((select Enabled from P_TPeer where RecId = :RecId) = 1) then
   begin
     if (Cause = 1)
     then
@@ -51,10 +51,10 @@ begin
     execute procedure P_LogErr(-21,RecId,Cause,'P_ExpelNode',Source,NodeId,Msg,null);
     if (Expel = 1) then
     begin
-      select RecId from P_TNode
+      select RecId from P_TPeer
         where RecId = :RecId
         for update of Enabled,ExpelCause WITH LOCK into :ATest; /* error here if record locked */
-      update P_TNode
+      update P_TPeer
         set
           Enabled = 0,
           ExpelCause = :Cause
@@ -81,10 +81,10 @@ end^
 /*
 Bad LocalSig
 */
-create procedure P_BadLcs(RecId TRef, NodeId TNodeId, Source TSysStr32)
+create procedure P_BadTmS(RecId TRef, NodeId TNodeId, Source TSysStr32)
 as
 begin
-  execute procedure P_ExpelNode(RecId,(select ExpelBadLcs from P_TParams),3,NodeId,Source);
+  execute procedure P_ExpelNode(RecId,(select ExpelBadTmS from P_TParams),3,NodeId,Source);
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_BadSign(RecId TRef, NodeId TNodeId, Source TSysStr32)
@@ -112,22 +112,9 @@ begin
     execute procedure P_LogErr(-50,sqlcode,gdscode,sqlstate,'P_UpdNDid','P_TNDidLog',null,null);
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_UpdProxy(RecId TRef,Proxy TBoolean)
-as
-  declare ATest TRef;
-begin
-  select RecId from P_TNode
-    where RecId = :RecId
-      for update of Proxy WITH LOCK into :ATest; /* error here if record locked */
-
-  update P_TNode set Proxy = :Proxy where RecId = :RecId;
-  when any do
-    execute procedure P_LogErr(-51,sqlcode,gdscode,sqlstate,'P_UpdProxy','P_TNode',null,null);
-end^
-/*-----------------------------------------------------------------------------------------------*/
 set term ; ^
 /*-----------------------------------------------------------------------------------------------*/
-grant all on P_TNode to procedure P_ExpelNode;
+grant all on P_TPeer to procedure P_ExpelNode;
 grant execute on procedure P_LogErr to procedure P_ExpelNode;
 
 grant select on P_TParams to procedure P_BadMeta;
@@ -136,8 +123,8 @@ grant execute on procedure P_ExpelNode to procedure P_BadMeta;
 grant select on P_TParams to procedure P_BadHash;
 grant execute on procedure P_ExpelNode to procedure P_BadHash;
 
-grant select on P_TParams to procedure P_BadLcs;
-grant execute on procedure P_ExpelNode to procedure P_BadLcs;
+grant select on P_TParams to procedure P_BadTmS;
+grant execute on procedure P_ExpelNode to procedure P_BadTmS;
 
 grant select on P_TParams to procedure P_BadSign;
 grant execute on procedure P_ExpelNode to procedure P_BadSign;
@@ -148,6 +135,4 @@ grant execute on procedure P_LogErr to procedure P_UpdMPId;
 grant all on P_TNDidLog to procedure P_UpdNDid;
 grant execute on procedure P_LogErr to procedure P_UpdNDid;
 
-grant all on P_TNode to procedure P_UpdProxy;
-grant execute on procedure P_LogErr to procedure P_UpdProxy;
 /*-----------------------------------------------------------------------------------------------*/

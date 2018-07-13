@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: mpvote.sql Version: 0.4.3.6                                 */
+/* PeopleRelay: sys_sec.sql Version: 0.4.3.6                                */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -16,35 +16,37 @@
 /* limitations under the License.                                           */
 /* ======================================================================== */
 
+insert into RDB$SECURITY_CLASSES(RDB$SECURITY_CLASS,RDB$ACL)
+  values('DBA$1',
+    cast(
+    ASCII_CHAR(0x01) ||  /* Version 1*/
+    ASCII_CHAR(0x01) ||  /* ACL_id_list */
+    ASCII_CHAR(0x03) ||  /* id_person */
+    ASCII_CHAR(0x06) ||  /* id_node */
+    ASCII_CHAR(0x53) ||  /* S */
+    ASCII_CHAR(0x59) ||  /* Y */
+    ASCII_CHAR(0x53) ||  /* S */
+    ASCII_CHAR(0x44) ||  /* D */
+    ASCII_CHAR(0x42) ||  /* B */
+    ASCII_CHAR(0x41) ||  /* A */
+    ASCII_CHAR(0x00) ||
+    ASCII_CHAR(0x02) ||  /* ACL_priv_list */
+    ASCII_CHAR(0x06) ||  /* P priv_alter Alter object */
+    ASCII_CHAR(0x01) ||  /* C priv_control */
+    ASCII_CHAR(0x03) ||  /* D priv_drop */
+    ASCII_CHAR(0x05) ||  /* W */
+    ASCII_CHAR(0x04) ||  /* R */
+    ASCII_CHAR(0x0B) ||  /* X */
+    ASCII_CHAR(0x00) ||
+    ASCII_CHAR(0x01) ||  /* id_group */
+    ASCII_CHAR(0x00) ||
+    ASCII_CHAR(0x02) ||  /* ACL_priv_list */
+    ASCII_CHAR(0x05) ||  /* W */
+    ASCII_CHAR(0x04) ||  /* R */
+    ASCII_CHAR(0x0B) ||  /* X */
+    ASCII_CHAR(0x00) ||
+    ASCII_CHAR(0x00) as BLOB));
 /*-----------------------------------------------------------------------------------------------*/
-create generator P_G$MPV;
-/*-----------------------------------------------------------------------------------------------*/
-create table P_TMPVoter(
-  RecId             TRid,
-  ParId             TRid,
-  BHash             TChHash not null,
-  NodeId            TNodeId not null,
-  RT                TCount,
-  CreatedAt         TTimeMark not null,
-  primary key       (RecId),
-  foreign key       (ParId) references P_TMeltingPot(RecId)
-    on update       CASCADE
-    on delete       CASCADE);
-/*-----------------------------------------------------------------------------------------------*/
-create unique index P_XU$MPV1 on P_TMPVoter(ParId,NodeId);
-create unique index P_XU$MPV2 on P_TMPVoter(ParId,BHash,NodeId);
-/*-----------------------------------------------------------------------------------------------*/
-set term ^ ;
-/*-----------------------------------------------------------------------------------------------*/
-create trigger P_TBI$TMPVoter for P_TMPVoter active before insert position 0
-as
-begin
-  new.CreatedAt = UTCTime();
-  new.RT = Gen_Id(P_G$RTT,0);
-  new.RecId = gen_id(P_G$MPV,1);
-end^
-/*-----------------------------------------------------------------------------------------------*/
-set term ; ^
-/*-----------------------------------------------------------------------------------------------*/
-create view P_MPVoter as select * from P_TMPVoter;
+update rdb$database set rdb$security_class = 'DBA$1';
+commit work;
 /*-----------------------------------------------------------------------------------------------*/

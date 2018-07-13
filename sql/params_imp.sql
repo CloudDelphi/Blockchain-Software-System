@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: params_imp.sql Version: 0.4.1.8                             */
+/* PeopleRelay: params_imp.sql Version: 0.4.3.6                             */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -27,7 +27,7 @@ begin
   execute procedure SYS_GrantExec('P_IsBlock',AUser);
   execute procedure SYS_GrantExec('P_HasBlock',AUser);  
 
-  execute procedure SYS_GrantView('P_Node',AUser);
+  execute procedure SYS_GrantView('P_Peer',AUser);
   execute procedure SYS_GrantView('P_Chain',AUser);
   execute procedure SYS_GrantView('P_TMPVoter',AUser);
   execute procedure SYS_GrantView('P_MeltingPot',AUser);
@@ -78,7 +78,6 @@ begin
         IpTimeout,
         PingDelay,
         PingCount,
-        IpMaskLen,
         StaticIP,
         APort,
         ExtAcc,
@@ -93,22 +92,21 @@ begin
         ChckHshCL,
         ChckSigCL,
         ChckHshCH,
-        ChckLcsCH,
+        ChckTmSCH,
         ChckSigCH,
         ChckHshMP,
-        ChckLcsMP,
+        ChckTmSMP,
         ChckSigMP,
         ChckIdNdAcc,
         ChckIdNdOrd,
-        ChckLcsNdAcc,
-        ChckLcsNdOrd,
+        ChckTmSNdAcc,
+        ChckTmSNdOrd,
         ChckSigNdAcc,
         ChckSigNdOrd,
         MetaCheckPut,
         MetaCheckGet,
         TimeSlice,
         SyncSpan,
-        RLLinger,
         MPQFactor,
         MPLinger,
         DehornPower,
@@ -125,7 +123,7 @@ begin
         SndLogMode,
         MsgLogMode,
         RplLogMode,
-        ExpelBadLcs,
+        ExpelBadTmS,
         ExpelBadMeta,
         ExpelBadHash,
         ExpelBadSign,
@@ -133,7 +131,8 @@ begin
         Handshake,
         NdPubFilter,
         NdRegFilter,
-        NodeListSync,
+        PeersSync,
+        ChainSync,
         NdLstSizeAcc,
         NdLstHoldAcc,
         NdLstSizeOrd,
@@ -153,7 +152,7 @@ begin
         DefAddress,
         DefSenderId,
         SigHash,
-        LoadSig,
+        NodeSig,
         PubKey,
         PvtKey,
         AlteredAt,
@@ -168,7 +167,6 @@ begin
         old.IpTimeout,
         old.PingDelay,
         old.PingCount,
-        old.IpMaskLen,
         old.StaticIP,
         old.APort,
         old.ExtAcc,
@@ -183,22 +181,21 @@ begin
         old.ChckHshCL,
         old.ChckSigCL,
         old.ChckHshCH,
-        old.ChckLcsCH,
+        old.ChckTmSCH,
         old.ChckSigCH,
         old.ChckHshMP,
-        old.ChckLcsMP,
+        old.ChckTmSMP,
         old.ChckSigMP,
         old.ChckIdNdAcc,
         old.ChckIdNdOrd,
-        old.ChckLcsNdAcc,
-        old.ChckLcsNdOrd,
+        old.ChckTmSNdAcc,
+        old.ChckTmSNdOrd,
         old.ChckSigNdAcc,
         old.ChckSigNdOrd,
         old.MetaCheckPut,
         old.MetaCheckGet,
         old.TimeSlice,
         old.SyncSpan,
-        old.RLLinger,
         old.MPQFactor,
         old.MPLinger,
         old.DehornPower,
@@ -215,7 +212,7 @@ begin
         old.SndLogMode,
         old.MsgLogMode,
         old.RplLogMode,
-        old.ExpelBadLcs,
+        old.ExpelBadTmS,
         old.ExpelBadMeta,
         old.ExpelBadHash,
         old.ExpelBadSign,
@@ -223,7 +220,8 @@ begin
         old.Handshake,
         old.NdPubFilter,
         old.NdRegFilter,
-        old.NodeListSync,
+        old.PeersSync,
+        old.ChainSync,
         old.NdLstSizeAcc,
         old.NdLstHoldAcc,
         old.NdLstSizeOrd,
@@ -243,12 +241,30 @@ begin
         old.DefAddress,
         old.DefSenderId,
         old.SigHash,
-        old.LoadSig,
+        old.NodeSig,
         old.PubKey,
         old.PvtKey,
         old.AlteredAt,
         old.ChangedBy,
         old.ChangedAt);
+  end
+end^
+/*-----------------------------------------------------------------------------------------------*/
+create procedure P_Unaltered
+as
+  declare ATest TTimeMark;
+begin
+  if ((select Result from P_BegAlt)= 1) then
+  begin
+    select AlteredAt from P_TParams
+      for update of AlteredAt WITH LOCK into :ATest; /* error here if record locked */
+    update P_TParams set AlteredAt = null;
+    execute procedure P_EndAlt;
+    when any do
+    begin
+      execute procedure P_EndAlt;
+      execute procedure P_LogErr(-27,sqlcode,gdscode,sqlstate,'P_Unaltered',null,null,null);
+    end
   end
 end^
 /*-----------------------------------------------------------------------------------------------*/
@@ -266,4 +282,9 @@ grant execute on procedure SYS_DropAcc to trigger P_TAU$TParams;
 grant execute on procedure P_ExitExtAcc to trigger P_TAU$TParams;
 grant execute on procedure P_EnterExtAcc to trigger P_TAU$TParams;
 grant execute on procedure P_ExtAccGrant to trigger P_TAU$TParams;
+
+grant all on P_TParams to procedure P_Unaltered;
+grant execute on procedure P_BegAlt to procedure P_Unaltered;
+grant execute on procedure P_EndAlt to procedure P_Unaltered;
+grant execute on procedure P_LogErr to procedure P_Unaltered;
 /*-----------------------------------------------------------------------------------------------*/

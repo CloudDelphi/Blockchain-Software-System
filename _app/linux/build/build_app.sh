@@ -1,6 +1,6 @@
 #!/bin/bash
 # ======================================================================== #
-# RelayMail: build_app.sh Version: 0.1.1.3                                 #
+# PeopleRelay: build_app.sh Version: 0.4.3.6                               #
 #                                                                          #
 # Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             #
 #                                                                          #

@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: declare.sql Version: 0.4.1.8                                */
+/* PeopleRelay: declare.sql Version: 0.4.3.6                                */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -49,19 +49,6 @@ end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_OnGetBlock(SenderId TSenderId,BlockId TBlockId)
 as
-begin
-  exit;
-end^
-/*-----------------------------------------------------------------------------------------------*/
-create procedure P_ClearRegAim
-as
-begin
-  exit;
-end^
-/*-----------------------------------------------------------------------------------------------*/
-create procedure P_ResetRegAim(Acceptor TBoolean)
-as
-  declare VoteLim TCount;
 begin
   exit;
 end^

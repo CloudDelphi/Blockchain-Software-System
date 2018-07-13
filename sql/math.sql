@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: math.sql Version: 0.4.1.8                                   */
+/* PeopleRelay: math.sql Version: 0.4.3.6                                   */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */

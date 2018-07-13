@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: dateutil.sql Version: 0.4.1.8                               */
+/* PeopleRelay: dateutil.sql Version: 0.4.3.6                               */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -19,7 +19,6 @@
 /*-----------------------------------------------------------------------------------------------*/
 set term ^ ;
 /*-----------------------------------------------------------------------------------------------*/
---cast(extract(MONTH from CURRENT_TIMESTAMP)/3 + 0.3 as Integer)
 create procedure YearQuarter(ADate TimeStamp)
 returns
   (Result Integer)

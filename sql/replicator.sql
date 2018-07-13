@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: replicator.sql Version: 0.4.1.8                             */
+/* PeopleRelay: replicator.sql Version: 0.4.3.6                             */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -28,25 +28,38 @@ returns
   (Result TInt32,
    AHash1 TIntHash, --Prime
    AHash2 TIntHash, --Cluster
-   AHash3 TIntHash, --LoadSig
+   AHash3 TIntHash, --NodeSig
    PeerIP TIPV6str,
    Proof TSysStr255)
 as
+  declare Online TBoolean;
 begin
-  Result = r;
-  select HPrime,HCluster from P_TTransponder into :AHash1,:AHash2;
-  select SigHash from P_TParams into :AHash3;
-  if (AHash2 is null) then AHash2 = 0;
-  select IP from P_TSesIP into :PeerIP;
+  select Online,SigHash from P_TParams into :Online,:AHash3;
+  if (Online = 0)
+  then
+    Result = -1;
+  else
+    begin
+      Result = r;
+      select HPrime,HCluster from P_TTransponder into :AHash1,:AHash2;
+      if (AHash2 is null) then AHash2 = 0;
+      select IP from P_TSesIP into :PeerIP;
+      execute procedure P_Handshake(PeerId,HShake,Puzzle) returning_values Proof;
+    end
 
-  execute procedure P_Handshake(PeerId,HShake,Puzzle) returning_values Proof;
+  when any do
+  begin
+    Result = 0;
+    execute procedure P_LogErr(-9,sqlcode,gdscode,sqlstate,'P_Pong',PeerId,PeerIP,null);
+  end
+      
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_Ping(
   Cnt TUInt1,
   AHash1 TIntHash, --Prime
   AHash2 TIntHash, --Cluster
-  AHash3 TIntHash, --LoadSig
+  AHash3 TIntHash, --NodeSig
   A_DB TFullPath,
   A_USR TUserName,
   A_PWD TPWD,
@@ -70,7 +83,7 @@ as
   declare HShake THandshake;
   declare AHash11 TIntHash; --Prime
   declare AHash22 TIntHash; --Cluster
-  declare AHash33 TIntHash; --LoadSig
+  declare AHash33 TIntHash; --NodeSig
 begin
   n = 0;
   SDelay = 0;
@@ -100,6 +113,12 @@ begin
         :Proof;
     Time2 = 'Now';  
 
+    if (rr = -1) then
+    begin
+      execute procedure P_LogErr(-7,0,0,null,sn,PeerId,'Peer offline',null);
+      exit;
+    end
+
     if (rr <> r) then
     begin
       execute procedure P_LogErr(-7,r,rr,null,sn,PeerId,'Rand Distortion',null);
@@ -114,14 +133,14 @@ begin
 
     if (AHash11 <> AHash1) then
     begin
-      execute procedure P_LogErr(-7,r,rr,null,sn,PeerId,'Unknown Prime',null);
+      execute procedure P_LogErr(-7,0,0,null,sn,PeerId,'Unknown Prime',null);
       exit;
     end
     if (AHash22 <> AHash2
       and not (AHash22 = 0 or AHash2 = 0))
     then
       begin
-        execute procedure P_LogErr(-7,r,rr,null,sn,PeerId,'Unknown Cluster',null);
+        execute procedure P_LogErr(-7,0,0,null,sn,PeerId,'Unknown Cluster',null);
         exit;
       end
 
@@ -153,31 +172,28 @@ create procedure P_CorrNode(
   Alias TNdAlias,
   Status TNdStatus,
   Acceptor TBoolean,
-  IpMaskLen TUInt,
   EditTime TTimeMark,
-  LoadSig TSig,
+  NodeSig TSig,
   PubKey TKey)
 as
   declare NodeId TNodeId;
 begin
-  select NodeId from P_TNode where RecId = :RecId into :NodeId;
+  select NodeId from P_TPeer where RecId = :RecId into :NodeId;
 
-  update P_TNodeLog /* To prevent overwriting */
+  update P_TPeerLog /* To prevent overwriting */
     set
       Alias = :Alias,
       Status = :Status,
       Acceptor = :Acceptor,
-      IpMaskLen = :IpMaskLen,
       EditTime = :EditTime,
-      LoadSig = :LoadSig,
+      NodeSig = :NodeSig,
       PubKey = :PubKey
     where NodeId = :NodeId
       and (Alias <> :Alias
         or Status <> :Status
         or Acceptor <> :Acceptor
-        or IpMaskLen <> :IpMaskLen
         or EditTime <> :EditTime
-        or LoadSig <> :LoadSig
+        or NodeSig <> :NodeSig
         or PubKey <> :PubKey);
 
   update P_TRegInq /* To prevent overwriting */
@@ -185,35 +201,31 @@ begin
       Alias = :Alias,
       Status = :Status,
       Acceptor = :Acceptor,
-      IpMaskLen = :IpMaskLen,
       EditTime = :EditTime,
-      LoadSig = :LoadSig,
+      NodeSig = :NodeSig,
       PubKey = :PubKey
     where NodeId = :NodeId
       and (Alias <> :Alias
         or Status <> :Status
         or Acceptor <> :Acceptor
-        or IpMaskLen <> :IpMaskLen
         or EditTime <> :EditTime
-        or LoadSig <> :LoadSig
+        or NodeSig <> :NodeSig
         or PubKey <> :PubKey);
 
-  update P_TNode
+  update P_TPeer
     set
       Alias = :Alias,
       Status = :Status,
       Acceptor = :Acceptor,
-      IpMaskLen = :IpMaskLen,
       EditTime = :EditTime,
-      LoadSig = :LoadSig,
+      NodeSig = :NodeSig,
       PubKey = :PubKey
     where RecId = :RecId
       and (Alias <> :Alias
         or Status <> :Status
         or Acceptor <> :Acceptor
-        or IpMaskLen <> :IpMaskLen
         or EditTime <> :EditTime
-        or LoadSig <> :LoadSig
+        or NodeSig <> :NodeSig
         or PubKey <> :PubKey);
   when any do
     execute procedure P_LogErr(-54,sqlcode,gdscode,sqlstate,'P_CorrNode',null,'Error',null);
@@ -221,21 +233,19 @@ end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_HasNode(
   Status TNdStatus,
-  IpMaskLen TUInt,
   NodeId TNodeId,
   IP TIPV6str,
-  LoadSig TSig)
+  NodeSig TSig)
 returns
   (Result TBoolean)
 as
 begin
   if (exists (select 1 from P_TParams where NodeId = :NodeId)
     or exists (select 1 from P_TRegInq where NodeId = :NodeId)
-    or exists (select 1 from P_TNode
+    or exists (select 1 from P_TPeer
       where NodeId = :NodeId
-        and LoadSig = :LoadSig
+        and NodeSig = :NodeSig
         and Status = :Status
-        and IpMaskLen = :IpMaskLen
         and IP = :IP))
   then
     Result = 1;
@@ -245,12 +255,12 @@ end^
 /*
   BlockNo           TRid,
   Checksum          TIntHash not null,
-  SelfHash          TChHash not null,
+  BHash             TChHash not null,
 
 
 */
 /*
-create procedure P_PerrProps()
+create procedure P_PeerProps()
 as
   declare stm TSysStr512;
 begin
@@ -265,23 +275,21 @@ create procedure P_RegNode(
   Alias TNdAlias,
   Status TNdStatus,
   Acceptor TBoolean,
-  IpMaskLen TUInt,
   StaticIP TIPV6str,
   APort TPort,
   APath TPath,
   ExtAcc TUserName,
   ExtPWD TPWD,
   EditTime TTimeMark,
-  LoadSig TSig,
+  NodeSig TSig,
   PubKey TKey)
 returns
   (Result TBoolean,
   R_Alias TNdAlias,
   R_Status TNdStatus,
   R_Acceptor TBoolean,
-  R_IpMaskLen TUInt,
   R_EditTime TTimeMark,
-  R_LoadSig TSig,
+  R_NodeSig TSig,
   R_PubKey TKey)
 as
   declare SizeO TCount;
@@ -295,139 +303,138 @@ as
   declare AHash TChHash;
   declare SSgHsh TIntHash;  
 begin
-  Result = 1;
-  ExtAcc = Upper(ExtAcc);
-
-  if (StaticIP is null or StaticIP = '')
-  then
-    select IP from P_TSesIP into :IP;
-  else
-    IP = StaticIP;
-
-  if ((select Result from P_HasNode(:Status,:IpMaskLen,:NodeId,:IP,:LoadSig)) = 0) then
+  if ((select Online from P_TParams) > 0) then
   begin
-    select
-        NdRegFilter,
-        NdLstSizeAcc,
-        NdLstHoldAcc,
-        NdLstSizeOrd,
-        NdLstHoldOrd,
-        Alias,
-        Status,
-        Acceptor,
-        IpMaskLen,
-        coalesce(AlteredAt,ChangedAt),
-        SigHash,
-        LoadSig,
-        PubKey
-      from P_TParams
-        into
-          :RFlt,
-          :SizeA,
-          :HoldA,
-          :SizeO,
-          :HoldO,
-          :R_Alias,
-          :R_Status,
-          :R_Acceptor,
-          :R_IpMaskLen,
-          :R_EditTime,
-          :SSgHsh,
-          :R_LoadSig,
-          :R_PubKey;
 
-    if ((select Result
-      from P_CheckNode(1,:NodeId,:Alias,:Acceptor,
-        :APort,:APath,:ExtAcc,:ExtPWD,:LoadSig,null,:PubKey,null)) = 0)
+    Result = 1;
+    ExtAcc = Upper(ExtAcc);
+
+    if (StaticIP is null or char_length(Trim(StaticIP)) < 7) /* 0.0.0.0 */
     then
-      exit;
+      select IP from P_TSesIP into :IP;
+    else
+      IP = StaticIP;
 
-    if (RFlt = 3
-      or (RFlt = 1 and Acceptor = 1)
-      or (RFlt = 2 and Acceptor = 0))
-    then
-      begin
-        if (Acceptor = 0)
-        then
-          begin
-            NSize = SizeO;
-            NHold = HoldO;
-          end
-        else
-          begin
-            NSize = SizeA;
-            NHold = HoldA;
-          end
+    if ((select Result from P_HasNode(:Status,:NodeId,:IP,:NodeSig)) = 0) then
+    begin
+      select
+          NdRegFilter,
+          NdLstSizeAcc,
+          NdLstHoldAcc,
+          NdLstSizeOrd,
+          NdLstHoldOrd,
+          Alias,
+          Status,
+          Acceptor,
+          coalesce(AlteredAt,ChangedAt),
+          SigHash,
+          NodeSig,
+          PubKey
+        from P_TParams
+          into
+            :RFlt,
+            :SizeA,
+            :HoldA,
+            :SizeO,
+            :HoldO,
+            :R_Alias,
+            :R_Status,
+            :R_Acceptor,
+            :R_EditTime,
+            :SSgHsh,
+            :R_NodeSig,
+            :R_PubKey;
 
-        if (NSize > 0 and NHold = 1
-          and (select (count(*) - :NSize)
-            from P_TNode where Acceptor = :Acceptor) > 0)
-        then
-          exit;
+      if ((select Result
+        from P_CheckNode(1,:NodeId,:Alias,:Acceptor,
+          :APort,:APath,:ExtAcc,:ExtPWD,:NodeSig,null,:PubKey,null)) = 0)
+      then
+        exit;
 
-        if (exists (select 1 from P_TRegInq where NodeId = :NodeId))
-        then
-          update P_TRegInq set
-              Alias = :Alias,
-              Status = :Status,
-              Acceptor = :Acceptor,
-              IpMaskLen = :IpMaskLen,
-              IP = :IP,
-              APort = :APort,
-              APath = :APath,
-              ExtAcc = :ExtAcc,
-              ExtPWD = :ExtPWD,
-              EditTime = :EditTime,
-              LoadSig = :LoadSig,
-              PubKey = :PubKey
-            where NodeId = :NodeId;
-        else
-          insert into
-            P_TRegInq(
-              NodeId,
-              Alias,
-              Status,
-              Acceptor,
-              IpMaskLen,
-              IP,
-              APort,
-              APath,
-              ExtAcc,
-              ExtPWD,
-              EditTime,
-              LoadSig,
-              PubKey)
-            values(
-              :NodeId,
-              :Alias,
-              :Status,
-              :Acceptor,
-              :IpMaskLen,
-              :IP,
-              :APort,
-              :APath,
-              :ExtAcc,
-              :ExtPWD,
-              :EditTime,
-              :LoadSig,
-              :PubKey);
-
-        execute procedure P_LogMsg(3,0,0,null,'P_RegNode',NodeId,'Registering Node',null);
-
-        if (SigHash is not distinct from SSgHsh) then
+      if (RFlt = 3
+        or (RFlt = 1 and Acceptor = 1)
+        or (RFlt = 2 and Acceptor = 0))
+      then
         begin
-          R_EditTime = null;
-          R_LoadSig = null;
-          R_PubKey = null;
+          if (Acceptor = 0)
+          then
+            begin
+              NSize = SizeO;
+              NHold = HoldO;
+            end
+          else
+            begin
+              NSize = SizeA;
+              NHold = HoldA;
+            end
+
+          if (NSize > 0 and NHold = 1
+            and (select (count(*) - :NSize)
+              from P_TPeer where Acceptor = :Acceptor) > 0)
+          then
+            exit;
+
+          if (exists (select 1 from P_TRegInq where NodeId = :NodeId))
+          then
+            update P_TRegInq set
+                Alias = :Alias,
+                Status = :Status,
+                Acceptor = :Acceptor,
+                IP = :IP,
+                APort = :APort,
+                APath = :APath,
+                ExtAcc = :ExtAcc,
+                ExtPWD = :ExtPWD,
+                EditTime = :EditTime,
+                NodeSig = :NodeSig,
+                PubKey = :PubKey
+              where NodeId = :NodeId;
+          else
+            insert into
+              P_TRegInq(
+                NodeId,
+                Alias,
+                Status,
+                Acceptor,
+                IP,
+                APort,
+                APath,
+                ExtAcc,
+                ExtPWD,
+                EditTime,
+                NodeSig,
+                PubKey)
+              values(
+                :NodeId,
+                :Alias,
+                :Status,
+                :Acceptor,
+                :IP,
+                :APort,
+                :APath,
+                :ExtAcc,
+                :ExtPWD,
+                :EditTime,
+                :NodeSig,
+                :PubKey);
+
+          execute procedure P_LogMsg(3,0,0,null,'P_RegNode',NodeId,'Registering Node',null);
+
+          if (SigHash is not distinct from SSgHsh) then
+          begin
+            R_EditTime = null;
+            R_NodeSig = null;
+            R_PubKey = null;
+          end
+
+          when any do
+          begin
+            Result = 0;
+            if (sqlcode <> -803) then
+              execute procedure P_LogErr(-15,sqlcode,gdscode,sqlstate,'P_RegNode',NodeId,null,null);
+          end
         end
-
-        when any do
-        begin
-          Result = 0;
-          if (sqlcode <> -803) then
-            execute procedure P_LogErr(-15,sqlcode,gdscode,sqlstate,'P_RegNode',NodeId,'Error',null);
-        end    
-      end
+    end
   end
 end^
 /*-----------------------------------------------------------------------------------------------*/
@@ -435,8 +442,12 @@ alter procedure P_Register
 as
   declare flag TBoolean;
   declare ATest TBoolean;
-  declare TotOk  TCount;
-  declare VoteLim TCount;
+
+  declare Pros TCount;
+  declare Voting TCount;
+  declare Quorum TCount;
+  declare Assent TCount;
+
   declare Acceptor TBoolean;
   declare MtCheck TBoolean;
   declare ChkRslt TTrilean;
@@ -449,11 +460,9 @@ as
   declare ExtPWD TPWD;
   declare NodeId TNodeId;
 
-  declare SelfIPML TUInt;
-
   declare Alias TNdAlias;
   declare Status TNdStatus;
-  declare TgNdId TNodeId;
+  declare PeerId TNodeId;
 
   declare PeerIP TIPV6str;
   declare PeerPort TPort;
@@ -461,8 +470,9 @@ as
   declare A_USR TUserName;
   declare A_PWD TPWD;
   declare A_DB TFullPath;
-  
-  declare LoadSig TSig;
+
+  declare pn TSysStr31;
+  declare NodeSig TSig;
   declare PubKey TKey;
   declare stm TSysStr512;
 
@@ -470,27 +480,26 @@ as
   declare R_Alias TNdAlias;
   declare R_Status TNdStatus;
   declare R_Acceptor TBoolean;
-  declare R_IpMaskLen TUInt;
   declare R_EditTime TTimeMark;
-  declare R_LoadSig TSig;
+  declare R_NodeSig TSig;
   declare R_PubKey TKey;
 
 begin
+  pn = 'P_Register';
   execute procedure P_BegRepl returning_values ATest;
-  execute procedure P_LogMsg(4,0,0,null,'P_Register',null,'Start',null);
+  execute procedure P_LogMsg(4,0,0,null,pn,null,'Start',null);
   execute procedure SYS_DBName returning_values APath;
   select
       NodeId,
       Alias,
       Status,
       Acceptor,
-      IpMaskLen,
       StaticIP,
       APort,
       ExtAcc,
       ExtPWD,
       MetaCheckPut,
-      LoadSig,
+      NodeSig,
       PubKey,
       coalesce(AlteredAt,ChangedAt)
     from
@@ -500,13 +509,12 @@ begin
       :Alias,
       :Status,
       :Acceptor,
-      :SelfIPML,
       :StaticIP,
       :APort,
       :ExtAcc,
       :ExtPWD,
       :MtCheck,
-      :LoadSig,
+      :NodeSig,
       :PubKey,
       :EditTime;
   if (NodeId = '-'
@@ -514,34 +522,31 @@ begin
     or ExtPWD = '-'
     or Char_Length(APort) < 3
     or APath is null or APath = ''
-    or LoadSig is null
+    or NodeSig is null
     or PubKey is null)
   then
     begin
-      execute procedure P_LogErr(-16,1,0,null,'P_Register',null,'Incorrect self data',null);
+      execute procedure P_LogErr(-16,1,0,null,pn,null,'Incorrect self data',null);
       exit;
     end
-  stm = 'execute procedure P_RegNode(?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
-
-  execute procedure P_VoteLim(3,Acceptor) returning_values VoteLim;
-  execute procedure P_ResetRegAim(Acceptor);
+  stm = 'execute procedure P_RegNode(?,?,?,?,?,?,?,?,?,?,?,?,?)';
+  execute procedure P_GetQuorum(3,Acceptor,-1) returning_values Quorum;
+  execute procedure P_GetAssent(3,Acceptor,Quorum) returning_values Assent;
 
   for select
-      C.NRecId,
-      C.NodeId,
-      C.SigHash,
-      C.Ip,
-      C.APort,
-      C.ExtAcc,
-      C.ExtPWD,
-      C.FullPath
+      RecId,
+      NodeId,
+      SigHash,
+      Ip,
+      APort,
+      ExtAcc,
+      ExtPWD,
+      FullPath
     from
-      P_NodeList(3,:Acceptor) C
-    inner join P_TRegAim
-      using(NodeId)
+      P_PeerList(3,:Acceptor)
     into
       :NRecId,
-      :TgNdId,
+      :PeerId,
       :SigHash,
       :PeerIp,
       :PeerPort,
@@ -552,7 +557,7 @@ begin
     if ((select Result
       from P_IsOnline(:PeerIP,:PeerPort)) = 0)
     then
-      execute procedure P_LogErr(-17,0,0,0,'P_IsOnline',TgNdId,null,null);
+      execute procedure P_LogErr(-17,0,0,0,'P_IsOnline',PeerId,null,null);
     else
       begin
         if (MtCheck = 1)
@@ -564,9 +569,10 @@ begin
         then
           begin
             begin
+              flag = 0;
               execute statement
-                (stm) (:SigHash,:NodeId,:Alias,:Status,:Acceptor,:SelfIPML,:StaticIP,
-                  :APort,:APath,:ExtAcc,:ExtPWD,:EditTime,:LoadSig,:PubKey)
+                (stm) (:SigHash,:NodeId,:Alias,:Status,:Acceptor,:StaticIP,
+                  :APort,:APath,:ExtAcc,:ExtPWD,:EditTime,:NodeSig,:PubKey)
                 with autonomous transaction
                 on external A_DB as user A_USR password A_PWD
                 into
@@ -574,41 +580,48 @@ begin
                   :R_Alias,
                   :R_Status,
                   :R_Acceptor,
-                  :R_IpMaskLen,
                   :R_EditTime,
-                  :R_LoadSig,
+                  :R_NodeSig,
                   :R_PubKey;
+              Voting = Voting + 1;
               when any do flag = 0;
             end
             if (flag = 1) then
             begin
-              TotOk = TotOk + 1;
-              execute procedure P_SweepRegAim(TgNdId);
-
+              Pros = Pros + 1;
               if (R_EditTime is not null) then
                 execute procedure P_CorrNode(
                   NRecId,
                   R_Alias,
                   R_Status,
                   R_Acceptor,
-                  R_IpMaskLen,
                   R_EditTime,
-                  R_LoadSig,
+                  R_NodeSig,
                   R_PubKey);
-              if (TotOk >= VoteLim) then Leave;
             end
 
+            if (Pros >= Assent
+              or Voting >= Quorum)
+            then
+              begin
+                execute procedure P_Unaltered;
+                Leave;
+              end
+
             when any do
-              execute procedure P_LogErr(-18,sqlcode,gdscode,sqlstate,'P_Register',TgNdId,null,null);
+              execute procedure P_LogErr(-18,sqlcode,gdscode,sqlstate,pn,PeerId,null,null);
           end
         else
-          execute procedure P_BadMeta(NRecId,TgNdId,'P_Register');
+          execute procedure P_BadMeta(NRecId,PeerId,pn);
       end
-
-  execute procedure P_LogMsg(4,0,0,null,'P_Register',null,'Finish',null);
+  execute procedure P_LogMsg(4,0,0,null,pn,null,'Finish',null);
   if (ATest = 1) then execute procedure P_EndRepl;
+
   when any do
-    execute procedure P_LogErr(-19,sqlcode,gdscode,sqlstate,'P_Register',null,'Error',null);
+  begin
+    if (ATest = 1) then execute procedure P_EndRepl;
+    execute procedure P_LogErr(-19,sqlcode,gdscode,sqlstate,pn,null,null,null);
+  end  
 end^
 /*-----------------------------------------------------------------------------------------------*/
 --execute procedure PG_Node(1,'127.0.0.1:c:\database\relaymail.fb','SYSDBA','masterkey')
@@ -622,44 +635,36 @@ returns
   (Rec_Cnt TCount)
 as
   declare NDO TUInt;
-  declare LogId TRef;
   declare RFlt TNdFilter;
   declare OldSid TRef;  
   declare StartSid TRef;
   declare SrcSid TRef;
   declare NewSid TRef;
-  declare Proxy TBoolean;
-  declare Proxy0 TBoolean;
   declare aFlag TBoolean;
-  declare QrmAdmt TBoolean;
   declare Acceptor TBoolean;
-  declare Dimmed TBoolean;
-  declare HostIP TIPV6str;
-  declare IpMaskLen TUInt;
+  declare PeerIP TIPV6str;
   declare IP TIPV6str;
-  declare VtId TNodeId;
+  declare PeerId TNodeId;
   declare NodeId TNodeId;
   declare Alias TNdAlias;
   declare Status TNdStatus;
-  declare SelfId TNodeId;
   declare APort TPort;
   declare APath TPath;
   declare ExtAcc TUserName;
   declare ExtPWD TPWD;
   declare EditTime TTimeMark;
-  declare LoadSig TSig;
-  declare LocalSig TSig;
+  declare NodeSig TSig;
+  declare TmpSig TSig;
   declare PubKey TKey;
   declare PeerKey TKey;
---  declare AHash TChHash;
   declare sstm TSysStr64;
   declare stm TSysStr1K;
 begin
   Rec_Cnt = 0;
-  select NodeId,NDOverlap,NodeListSync from P_TParams into :SelfId,:NDO,:RFlt;
+  select NDOverlap,PeersSync from P_TParams into :NDO,:RFlt;
 
-  select NodeId,Acceptor,Proxy,IP,PubKey from P_TNode
-    where RecId = :A_RId into :VtId,:aFlag,:Proxy0,:HostIP,:PeerKey;
+  select NodeId,Acceptor,IP,PubKey from P_TPeer
+    where RecId = :A_RId into :PeerId,:aFlag,:PeerIP,:PeerKey;
 
   select first 1 Sid from P_TNDidLog
     where ParId = :A_RId order by RecId desc into :StartSid;
@@ -678,8 +683,8 @@ begin
     else
       sstm = '';
 
-  stm = 'select Sid,NodeId,Alias,Status,Acceptor,IpMaskLen,IP,APort,APath,ExtAcc,ExtPWD,EditTime,LoadSig,'
-    || 'LocalSig,PubKey from P_Node where' || sstm || ' Sid > ? order by Sid';
+  stm = 'select Sid,NodeId,Alias,Status,Acceptor,IP,APort,APath,ExtAcc,ExtPWD,EditTime,NodeSig,'
+    || 'TmpSig,PubKey from P_Peer where' || sstm || ' Sid > ? order by Sid';
 
   for execute statement (stm) (:StartSid)
     on external A_SRC as user A_USR password A_PWD
@@ -689,67 +694,78 @@ begin
       :Alias,
       :Status,
       :Acceptor,
-      :IpMaskLen,
       :IP,
       :APort,
       :APath,
       :ExtAcc,
       :ExtPWD,
       :EditTime,
-      :LoadSig,
-      :LocalSig,
+      :NodeSig,
+      :TmpSig,
       :PubKey
   do
-    if (NodeId <> SelfId
-      and (select Result from P_CheckNode(2,:NodeId,:Alias,:Acceptor,
-        :APort,:APath,:ExtAcc,:ExtPWD,:LoadSig,:LocalSig,:PubKey,:PeerKey)) = 1)
+    if ((select Result from P_CheckNode(2,:NodeId,:Alias,:Acceptor,
+        :APort,:APath,:ExtAcc,:ExtPWD,:NodeSig,:TmpSig,:PubKey,:PeerKey)) = 1)
     then
       begin
-        execute procedure SYS_IsSubNet(HostIP,IP,IpMaskLen) returning_values Dimmed;
-        if (Dimmed = 1 and Proxy = 0) then Proxy = 1;
-
-        execute procedure P_NodeCacheHit(Acceptor,NodeId) returning_values QrmAdmt;
-
-        LogId = null;
-        select RecId from P_TNodeLog where NodeId = :NodeId into :LogId;
-        if (LogId is null) then
+        if (not exists (select 1 from P_TPeerLog where ParId = :A_RId and NodeId = :NodeId))
+        then
           insert into
-            P_TNodeLog(
+            P_TPeerLog(
+              ParId,
               NodeId,
               Alias,
               Status,
               Acceptor,
-              Dimmed,
-              IpMaskLen,
               IP,
               APort,
               APath,
               ExtAcc,
               ExtPWD,
               EditTime,
-              QrmAdmt,
-              LoadSig,
+              NodeSig,
               PubKey)
             values(
+              :A_RId,
               :NodeId,
               :Alias,
               :Status,
               :Acceptor,
-              :Dimmed,
-              :IpMaskLen,
               :IP,
               :APort,
               :APath,
               :ExtAcc,
               :ExtPWD,
               :EditTime,
-              :QrmAdmt,
-              :LoadSig,
-              :PubKey) returning RecId into :LogId;
+              :NodeSig,
+              :PubKey);
+        else
+          update P_TPeerLog
+            set
+              Alias = :Alias,
+              Status = :Status,
+              Acceptor = :Acceptor,
+              IP = :IP,
+              APort = :APort,
+              APath = :APath,
+              ExtAcc = :ExtAcc,
+              ExtPWD = :ExtPWD,
+              EditTime = :EditTime,
+              NodeSig = :NodeSig,
+              PubKey = :PubKey
+            where ParId = :A_RId and NodeId = :NodeId
+              and (Alias <> :Alias
+                or Status <> :Status
+                or Acceptor <> :Acceptor
+                or IP <> :IP
+                or APort <> :APort
+                or APath <> :APath
+                or ExtAcc <> :ExtAcc
+                or ExtPWD <> :ExtPWD
+                or EditTime <> :EditTime
+                or NodeSig <> :NodeSig
+                or PubKey <> :PubKey);
         NewSid = MaxValue(NewSid,SrcSid);
-
-        if (not exists (select 1 from P_TNDVoter where ParId = :LogId and NodeId = :VtId)) then
-          insert into P_TNDVoter(ParId,NodeId,Acceptor) values(:LogId,:VtId,:aFlag);
 
         when any do
           if (sqlcode not in (-803,-530)) then
@@ -759,258 +775,128 @@ begin
       NewSid = MaxValue(NewSid,SrcSid);
 
   if (NewSid > OldSid) then execute procedure P_UpdNDid(A_RId,NewSid);
-  if (Proxy is distinct from Proxy0) then execute procedure P_UpdProxy(A_RId,Proxy);
 
   when any do
     execute procedure P_LogErr(-152,sqlcode,gdscode,sqlstate,'PG_Node',NodeId,'Error',null);
 
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_FixNodes(A_Acc TBoolean)
+create procedure P_FixNodes
 as
-  declare QA TCount;
-  declare QT TCount;
-
   declare NodeId TNodeId;
   declare Alias TNdAlias;
   declare Status TNdStatus;
   declare Acceptor TBoolean;
-  declare Dimmed TBoolean;
-  declare IpMaskLen TUInt;
   declare IP TIPV6str;
   declare APort TPort;
   declare APath TPath;
   declare ExtAcc TUserName;
   declare ExtPWD TPWD;
   declare EditTime TTimeMark;
-  declare LoadSig TSig;
+  declare NodeSig TSig;
   declare PubKey TKey;
 begin
-  if (A_Acc = 1)
-  then
+  for select
+      NodeId,
+      Alias,
+      Status,
+      Acceptor,
+      IP,
+      APort,
+      APath,
+      ExtAcc,
+      ExtPWD,
+      EditTime,
+      NodeSig,
+      PubKey
+    from
+      P_PeerLog
+    order by
+      Voting
+    into
+      :NodeId,
+      :Alias,
+      :Status,
+      :Acceptor,
+      :IP,
+      :APort,
+      :APath,
+      :ExtAcc,
+      :ExtPWD,
+      :EditTime,
+      :NodeSig,
+      :PubKey
+  do
     begin
-      for select
-          NodeId,
-          Alias,
-          Status,
-          Acceptor,
-          Dimmed,
-          IpMaskLen,
-          IP,
-          APort,
-          APath,
-          ExtAcc,
-          ExtPWD,
-          EditTime,
-          LoadSig,
-          PubKey
-        from
-          P_TNodeLog
-        order by
-          RecId
-        into
-          :NodeId,
-          :Alias,
-          :Status,
-          :Acceptor,
-          :Dimmed,
-          :IpMaskLen,
-          :IP,
-          :APort,
-          :APath,
-          :ExtAcc,
-          :ExtPWD,
-          :EditTime,
-          :LoadSig,
-          :PubKey
-      do
-        begin
-          if (exists (select 1 from P_TNode where NodeId = :NodeId))
-          then
-            update P_TNode
-              set
-                Alias = :Alias,
-                Status = :Status,
-                Acceptor = :Acceptor,
-                Dimmed = :Dimmed,
-                IpMaskLen = :IpMaskLen,
-                IP = :IP,
-                APort = :APort,
-                APath = :APath,
-                ExtAcc = :ExtAcc,
-                ExtPWD = :ExtPWD,
-                EditTime = :EditTime,
-                LoadSig = :LoadSig,
-                PubKey = :PubKey
-              where NodeId = :NodeId
-                and (Alias <> :Alias
-                  or Status <> :Status
-                  or Acceptor <> :Acceptor
-                  or Dimmed <> :Dimmed
-                  or IpMaskLen <> :IpMaskLen
-                  or IP <> :IP
-                  or APort <> :APort
-                  or APath <> :APath
-                  or ExtAcc <> :ExtAcc
-                  or ExtPWD <> :ExtPWD
-                  or EditTime <> :EditTime
-                  or LoadSig <> :LoadSig
-                  or PubKey <> :PubKey);
-          else
-            insert into
-              P_TNode(
-                NodeId,
-                Alias,
-                Status,
-                Acceptor,
-                Dimmed,
-                IpMaskLen,
-                IP,
-                APort,
-                APath,
-                ExtAcc,
-                ExtPWD,
-                EditTime,
-                LoadSig,
-                PubKey)
-              values(
-                :NodeId,
-                :Alias,
-                :Status,
-                :Acceptor,
-                :Dimmed,
-                :IpMaskLen,
-                :IP,
-                :APort,
-                :APath,
-                :ExtAcc,
-                :ExtPWD,
-                :EditTime,
-                :LoadSig,
-                :PubKey);
-          delete from P_TNodeLog where NodeId = :NodeId;      
-        end
+      if (exists (select 1 from P_TPeer where NodeId = :NodeId))
+      then
+        update P_TPeer
+          set
+            Alias = :Alias,
+            Status = :Status,
+            Acceptor = :Acceptor,
+            IP = :IP,
+            APort = :APort,
+            APath = :APath,
+            ExtAcc = :ExtAcc,
+            ExtPWD = :ExtPWD,
+            EditTime = :EditTime,
+            NodeSig = :NodeSig,
+            PubKey = :PubKey
+          where NodeId = :NodeId
+            and (Alias <> :Alias
+              or Status <> :Status
+              or Acceptor <> :Acceptor
+              or IP <> :IP
+              or APort <> :APort
+              or APath <> :APath
+              or ExtAcc <> :ExtAcc
+              or ExtPWD <> :ExtPWD
+              or EditTime <> :EditTime
+              or NodeSig <> :NodeSig
+              or PubKey <> :PubKey);
+      else
+        insert into
+          P_TPeer(
+            NodeId,
+            Alias,
+            Status,
+            Acceptor,
+            IP,
+            APort,
+            APath,
+            ExtAcc,
+            ExtPWD,
+            EditTime,
+            NodeSig,
+            PubKey)
+          values(
+            :NodeId,
+            :Alias,
+            :Status,
+            :Acceptor,
+            :IP,
+            :APort,
+            :APath,
+            :ExtAcc,
+            :ExtPWD,
+            :EditTime,
+            :NodeSig,
+            :PubKey);
     end
-  else
-    begin
-      execute procedure P_QuorumAcc(0) returning_values QA;
-      execute procedure P_QuorumTot(0) returning_values QT;
 
-      for select
-          NodeId,
-          Alias,
-          Status,
-          Acceptor,
-          Dimmed,
-          IpMaskLen,
-          IP,
-          APort,
-          APath,
-          ExtAcc,
-          ExtPWD,
-          EditTime,
-          LoadSig,
-          PubKey
-        from
-          P_NDV
-        where VA >= :QA
-          or VT >= :QT
-        order by
-          RecId
-        into
-          :NodeId,
-          :Alias,
-          :Status,
-          :Acceptor,
-          :Dimmed,
-          :IpMaskLen,
-          :IP,
-          :APort,
-          :APath,
-          :ExtAcc,
-          :ExtPWD,
-          :EditTime,
-          :LoadSig,
-          :PubKey
-      do
-      begin
-        if (exists (select 1 from P_TNode where NodeId = :NodeId))
-        then
-          update P_TNode
-            set
-              Alias = :Alias,
-              Status = :Status,
-              Acceptor = :Acceptor,
-              Dimmed = :Dimmed,
-              IpMaskLen = :IpMaskLen,
-              IP = :IP,
-              APort = :APort,
-              APath = :APath,
-              ExtAcc = :ExtAcc,
-              ExtPWD = :ExtPWD,
-              EditTime = :EditTime,
-              LoadSig = :LoadSig,
-              PubKey = :PubKey
-            where NodeId = :NodeId
-              and (Alias <> :Alias
-                or Status <> :Status
-                or Acceptor <> :Acceptor
-                or Dimmed <> :Dimmed
-                or IpMaskLen <> :IpMaskLen
-                or IP <> :IP
-                or APort <> :APort
-                or APath <> :APath
-                or ExtAcc <> :ExtAcc
-                or ExtPWD <> :ExtPWD
-                or EditTime <> :EditTime
-                or LoadSig <> :LoadSig
-                or PubKey <> :PubKey);
-        else
-          insert into
-            P_TNode(
-              NodeId,
-              Alias,
-              Status,
-              Acceptor,
-              Dimmed,
-              IpMaskLen,
-              IP,
-              APort,
-              APath,
-              ExtAcc,
-              ExtPWD,
-              EditTime,
-              LoadSig,
-              PubKey)
-            values(
-              :NodeId,
-              :Alias,
-              :Status,
-              :Acceptor,
-              :Dimmed,
-              :IpMaskLen,
-              :IP,
-              :APort,
-              :APath,
-              :ExtAcc,
-              :ExtPWD,
-              :EditTime,
-              :LoadSig,
-              :PubKey);
-        delete from P_TNodeLog where NodeId = :NodeId;
-      end        
-    end
+  delete from P_TPeerLog;
+
   when any do
     execute procedure P_LogErr(-10,sqlcode,gdscode,sqlstate,'P_FixNodes',null,null,null);
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_DoPullData(Acceptor TBoolean, RepKind TRepKind, ProcName TSysStr32)
-returns
-  (Quorum TCount)
 as
   declare flag TBoolean;
   declare PeerRId TRef;
-  declare VoteLim TCount;
+  declare Voting TCount;
+  declare Quorum TCount;
   declare AHash1 TIntHash;
   declare AHash2 TIntHash;
   declare AHash3 TIntHash;
@@ -1031,17 +917,17 @@ as
   declare sn TSysStr32;
 begin
   sn = 'P_DoPullData';
-  Quorum = 0;
+  Voting = 0;
   Rec_Cnt = 0;
   TM0 = CURRENT_TIMESTAMP;
   select PingCount,MetaCheckGet,TimeSlice from P_TParams into :PingCount,:MtCheck,:TMSlice;
   select HPrime,HCluster from P_TTransponder into :AHash1,:AHash2;
   if (AHash2 is null) then AHash2 = 0;
 
-  execute procedure P_VoteLim(RepKind,Acceptor) returning_values VoteLim;
+  execute procedure P_GetQuorum(RepKind,Acceptor,-1) returning_values Quorum;
 
   for select
-      NRecId,
+      RecId,
       NodeId,
       SigHash,
       Ip,
@@ -1050,7 +936,7 @@ begin
       ExtPWD,
       FullPath
     from
-      P_NodeList(:RepKind,:Acceptor)
+      P_PeerList(:RepKind,:Acceptor)
     into
       :PeerRId,
       :PeerId,
@@ -1097,8 +983,8 @@ begin
               if (Rec_Cnt > 0) then
                 execute procedure P_ReplMsg(PeerRId,RepKind,Rec_Cnt,StartTM,0,null);
 
-              Quorum = Quorum + 1;
-              if (Quorum >= VoteLim) then Leave;
+              Voting = Voting + 1;
+              if (Voting >= Quorum) then Leave;
               when any do
                 execute procedure P_LogErr(-102,sqlcode,gdscode,sqlstate,ProcName,PeerId,null,null);
             end
@@ -1118,7 +1004,7 @@ begin
           execute procedure P_LogErr(-104,sqlcode,gdscode,sqlstate,sn,PeerId,ProcName,null);
       end
 
-  execute procedure P_LogMsg(8,Quorum,0,null,sn,ProcName,null,null);
+  execute procedure P_LogMsg(8,Voting,0,null,sn,ProcName,null,null);
 
   when any do
     execute procedure P_LogErr(-100,sqlcode,gdscode,sqlstate,sn,ProcName,null,null);
@@ -1130,13 +1016,13 @@ as
   declare QA TCount;
   declare QAcc TBoolean;
   declare flag TBoolean;
-  declare Quorum TCount;
   declare Rec_Cnt TCount;
   declare OnLine TBoolean;
   declare Acceptor TBoolean;
   declare NDQuorumAcc TBoolean;
   declare CHQuorumAcc TBoolean;
-  declare NdLstCtrl TNdFilter;
+  declare PeersSync TNdFilter;
+  declare ChainSync TBoolean;
 begin
   execute procedure P_BegRepl returning_values flag;
   if (flag = 1) then
@@ -1146,7 +1032,8 @@ begin
         Acceptor,
         NDQuorumAcc,
         CHQuorumAcc,
-        NodeListSync
+        PeersSync,
+        ChainSync
       from
         P_TParams
       into
@@ -1154,7 +1041,8 @@ begin
         :Acceptor,
         :NDQuorumAcc,
         :CHQuorumAcc,
-        :NdLstCtrl;
+        :PeersSync,
+        :ChainSync;
 
     if (OnLine = 0)
     then
@@ -1163,25 +1051,29 @@ begin
       begin
         execute procedure P_LogMsg(2,0,0,null,'P_PullData',null,'Start',null);
 
-        if (NdLstCtrl > 0) then
+        if (PeersSync > 0) then
         begin
-          execute procedure P_DoPullData(Acceptor,0,'PG_Node') returning_values Quorum;
+          execute procedure P_DoPullData(Acceptor,0,'PG_Node');
           if (Acceptor = 1 and NDQuorumAcc = 0) then QAcc = 1; else QAcc = 0;
-          execute procedure P_FixNodes(QAcc);
+          execute procedure P_FixNodes;
         end
 
-        execute procedure P_DoPullData(Acceptor,1,'PG_Chain') returning_values Quorum;
-        if (Acceptor = 1 and CHQuorumAcc = 0) then QAcc = 1; else QAcc = 0;
-        execute procedure P_FixChain(QAcc) returning_values Rec_Cnt;
+        if (ChainSync > 0) then
+        begin
+          execute procedure P_DoPullData(Acceptor,1,'PG_Chain');
+          if (Acceptor = 1 and CHQuorumAcc = 0) then QAcc = 1; else QAcc = 0;
+          execute procedure P_FixChain(QAcc) returning_values Rec_Cnt;
 
-        if (Acceptor = 1) then
-          execute procedure P_DoPullData(Acceptor,2,'PG_MeltingPot') returning_values Quorum;
+          if (Acceptor = 1) then
+            execute procedure P_DoPullData(Acceptor,2,'PG_MeltingPot');
 
-/* debug, test for P_TNode concurrent updates
-        if (Acceptor = 1) then
-          in autonomous transaction do --debug, test for P_TNode concurrent updates
-            execute procedure P_DoPullData(Acceptor,2,'PG_MeltingPot') returning_values Quorum;
+/* debug, test for P_TPeer concurrent updates
+          if (Acceptor = 1) then
+            in autonomous transaction do --debug, test for P_TPeer concurrent updates
+              execute procedure P_DoPullData(Acceptor,2,'PG_MeltingPot');
 */
+        end
+
         execute procedure P_LogMsg(2,0,0,null,'P_PullData',null,'Finish',null);
         when any do
           execute procedure P_LogErr(-80,sqlcode,gdscode,sqlstate,'P_PullData',null,'Error',null);
@@ -1194,6 +1086,7 @@ set term ; ^
 /*-----------------------------------------------------------------------------------------------*/
 grant select on P_TParams to procedure P_Pong;
 grant select on P_TTransponder to procedure P_Pong;
+grant execute on procedure P_LogErr to procedure P_Pong;
 grant execute on procedure P_Handshake to procedure P_Pong;
 
 grant select on P_TParams to procedure P_Ping;
@@ -1202,50 +1095,45 @@ grant execute on procedure P_LogErr to procedure P_Ping;
 grant execute on procedure P_NewHShake to procedure P_Ping;
 grant execute on procedure P_CheckHShake to procedure P_Ping;
 
-grant all on P_TNode to procedure P_CorrNode;
+grant all on P_TPeer to procedure P_CorrNode;
 grant all on P_TRegInq to procedure P_CorrNode;
-grant all on P_TNodeLog to procedure P_CorrNode;
+grant all on P_TPeerLog to procedure P_CorrNode;
 grant execute on procedure P_LogErr to procedure P_CorrNode;
 
-grant select on P_TNode to procedure P_HasNode;
+grant select on P_TPeer to procedure P_HasNode;
 grant select on P_TParams to procedure P_HasNode;
 grant select on P_TRegInq to procedure P_HasNode;
 
 grant all on P_TRegInq to procedure P_RegNode;
-grant select on P_TNode to procedure P_RegNode;
+grant select on P_TPeer to procedure P_RegNode;
 grant select on P_TParams to procedure P_RegNode;
 grant execute on procedure P_LogMsg to procedure P_RegNode;
 grant execute on procedure P_LogErr to procedure P_RegNode;
 grant execute on procedure P_HasNode to procedure P_RegNode;
 grant execute on procedure P_CheckNode to procedure P_RegNode;
 
-grant all on P_TRegAim to procedure P_Register;
 grant select on P_TParams to procedure P_Register;
 grant execute on procedure P_LogMsg to procedure P_Register;
 grant execute on procedure P_LogErr to procedure P_Register;
 grant execute on procedure P_BadMeta to procedure P_Register;
 grant execute on procedure P_BegRepl to procedure P_Register;
 grant execute on procedure P_EndRepl to procedure P_Register;
-grant execute on procedure P_VoteLim to procedure P_Register;
 grant execute on procedure SYS_DBName to procedure P_Register;
 grant execute on procedure P_IsOnline to procedure P_Register;
-grant execute on procedure P_NodeList to procedure P_Register;
+grant execute on procedure P_PeerList to procedure P_Register;
 grant execute on procedure P_CorrNode to procedure P_Register;
+grant execute on procedure P_GetQuorum to procedure P_Register;
+grant execute on procedure P_GetAssent to procedure P_Register;
 grant execute on procedure SYS_CheckDB to procedure P_Register;
-grant execute on procedure P_SweepRegAim to procedure P_Register;
-grant execute on procedure P_ResetRegAim to procedure P_Register;
+grant execute on procedure P_Unaltered to procedure P_Register;
 
-grant all on P_TNodeLog to procedure PG_Node;
-grant all on P_TNDVoter to procedure PG_Node;
-grant select on P_TNode to procedure PG_Node;
+grant all on P_TPeerLog to procedure PG_Node;
+grant select on P_TPeer to procedure PG_Node;
 grant select on P_TParams to procedure PG_Node;
 grant select on P_TNDidLog to procedure PG_Node;
 grant execute on procedure P_LogErr to procedure PG_Node;
 grant execute on procedure P_UpdNDid to procedure PG_Node;
-grant execute on procedure P_UpdProxy to procedure PG_Node;
 grant execute on procedure P_CheckNode to procedure PG_Node;
-grant execute on procedure SYS_IsSubNet to procedure PG_Node;
-grant execute on procedure P_NodeCacheHit to procedure PG_Node;
 
 grant select on P_TParams to procedure P_DoPullData;
 grant select on P_TTransponder to procedure P_DoPullData;
@@ -1255,21 +1143,19 @@ grant execute on procedure P_LogMsg to procedure P_DoPullData;
 grant execute on procedure P_LogErr to procedure P_DoPullData;
 grant execute on procedure P_ReplMsg to procedure P_DoPullData;
 grant execute on procedure P_BadMeta to procedure P_DoPullData;
-grant execute on procedure P_VoteLim to procedure P_DoPullData;
-grant execute on procedure P_NodeList to procedure P_DoPullData;
+grant execute on procedure P_PeerList to procedure P_DoPullData;
 grant execute on procedure P_IsOnline to procedure P_DoPullData;
+grant execute on procedure P_GetQuorum to procedure P_DoPullData;
 grant execute on procedure SYS_CheckDB to procedure P_DoPullData;
 
 grant execute on procedure PG_Node to procedure P_DoPullData;
 grant execute on procedure PG_Chain to procedure P_DoPullData;
 grant execute on procedure PG_MeltingPot to procedure P_DoPullData;
 
-grant all on P_TNode to procedure P_FixNodes;
-grant select on P_NDV to procedure P_FixNodes;
-grant all on P_TNodeLog to procedure P_FixNodes;
+grant all on P_TPeer to procedure P_FixNodes;
+grant all on P_TPeerLog to procedure P_FixNodes;
+grant select on P_PeerLog to procedure P_FixNodes;
 grant execute on procedure P_LogErr to procedure P_FixNodes;
-grant execute on procedure P_QuorumAcc to procedure P_FixNodes;
-grant execute on procedure P_QuorumTot to procedure P_FixNodes;
 
 grant select on P_TParams to procedure P_PullData;
 grant execute on procedure P_LogMsg to procedure P_PullData;
@@ -1278,17 +1164,17 @@ grant execute on procedure P_BegRepl to procedure P_PullData;
 grant execute on procedure P_EndRepl to procedure P_PullData;
 grant execute on procedure P_FixNodes to procedure P_PullData;
 grant execute on procedure P_FixChain to procedure P_PullData;
-grant execute on procedure P_QuorumAcc to procedure P_PullData;
+grant execute on procedure P_AssentAcc to procedure P_PullData;
 grant execute on procedure P_DoPullData to procedure P_PullData;
 
 grant all on P_TBacklog to procedure PG_Chain;
 grant all on P_TSMVoter to procedure PG_Chain;
-grant select on P_TNode to procedure PG_Chain;
+grant select on P_TPeer to procedure PG_Chain;
 grant select on P_TChain to procedure PG_Chain;
 grant select on P_TParams to procedure PG_Chain;
 grant execute on procedure P_IsHash to procedure PG_Chain;
 grant execute on procedure P_LogErr to procedure PG_Chain;
-grant execute on procedure P_BadLcs to procedure PG_Chain;
+grant execute on procedure P_BadTmS to procedure PG_Chain;
 grant execute on procedure P_BadHash to procedure PG_Chain;
 grant execute on procedure P_BadSign to procedure PG_Chain;
 grant execute on procedure P_IsSysSig to procedure PG_Chain;
@@ -1300,18 +1186,18 @@ grant select on P_TBacklog to procedure P_FixChain;
 grant execute on procedure P_Dehorn to procedure P_FixChain;
 grant execute on procedure P_Repair to procedure P_FixChain;
 grant execute on procedure P_LogErr to procedure P_FixChain;
-grant execute on procedure P_QuorumAcc to procedure P_FixChain;
-grant execute on procedure P_QuorumTot to procedure P_FixChain;
+grant execute on procedure P_AssentAcc to procedure P_FixChain;
+grant execute on procedure P_AssentTot to procedure P_FixChain;
 
 grant all on P_TMPVoter to procedure PG_MeltingPot;
-grant select on P_TNode to procedure PG_MeltingPot;
+grant select on P_TPeer to procedure PG_MeltingPot;
 grant select on P_TParams to procedure PG_MeltingPot;
 grant select on P_TMPidLog to procedure PG_MeltingPot;
 grant all on P_TMeltingPot to procedure PG_MeltingPot;
 grant execute on procedure P_IsHash to procedure PG_MeltingPot;
 grant execute on procedure P_LogMsg to procedure PG_MeltingPot;
 grant execute on procedure P_LogErr to procedure PG_MeltingPot;
-grant execute on procedure P_BadLcs to procedure PG_MeltingPot;
+grant execute on procedure P_BadTmS to procedure PG_MeltingPot;
 grant execute on procedure P_BadHash to procedure PG_MeltingPot;
 grant execute on procedure P_BadSign to procedure PG_MeltingPot;
 grant execute on procedure P_UpdMPId to procedure PG_MeltingPot;
@@ -1331,7 +1217,7 @@ grant select on P_TParams to procedure P_Commit;
 grant select on P_TBackLog to procedure P_Commit;
 grant execute on procedure P_LogMsg to procedure P_Commit;
 grant execute on procedure P_LogErr to procedure P_Commit;
-grant execute on procedure P_QuorumAcc to procedure P_Commit;
+grant execute on procedure P_AssentAcc to procedure P_Commit;
 grant execute on procedure P_BegCommit to procedure P_Commit;
 grant execute on procedure P_EndCommit to procedure P_Commit;
 /*-----------------------------------------------------------------------------------------------*/

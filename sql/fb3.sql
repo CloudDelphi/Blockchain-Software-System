@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: fb3.sql Version: 0.4.1.8                                    */
+/* PeopleRelay: fb3.sql Version: 0.4.3.6                                    */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -60,7 +60,7 @@ grant usage on sequence P_G$Quorum to trigger P_TBI$TQuorum;
 grant usage on sequence P_G$IpBan to trigger P_TBI$TIpBan;
 grant usage on sequence P_G$MPV to trigger P_TBI$TMPVoter;
 grant usage on sequence P_G$NDV to trigger P_TBI$TNDVoter;
-grant usage on sequence P_G$Node to trigger P_TBI$TNode;
+grant usage on sequence P_G$Node to trigger P_TBI$TPeer;
 grant usage on sequence P_G$ReplLog to trigger P_TBI$TReplLog;
 grant usage on sequence P_G$NodeLog to trigger P_TBI$TNodeLog;
 grant usage on sequence P_G$DBLog to trigger P_T$Connect;

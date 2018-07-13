@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: account.sql Version: 0.4.1.8                                */
+/* PeopleRelay: account.sql Version: 0.4.3.6                                */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -23,7 +23,7 @@ create generator P_G$ACLIp;
 create table P_TACL(
   RecId             TRid,
   Kind              TAccKind,
-  IpCheck           TBoolean,  
+  IpCheck           TBoolean,
   LogAttach         TBoolean default 1,
   Suspended         TBoolean,
   Name              TUserName not null unique,
@@ -266,8 +266,7 @@ as
   declare IP TIPV6str;
   declare Proto TProto;
 begin
-  select IP from P_TSesIP into :IP;
-  IP = Upper(IP);
+  select Upper(IP) from P_TSesIP into :IP;
   select Result from SYS_Proto into :Proto;
   Proto = Upper(Proto);
   select

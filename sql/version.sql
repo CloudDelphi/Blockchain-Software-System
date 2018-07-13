@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: version.sql Version: 0.4.1.8                                */
+/* PeopleRelay: version.sql Version: 0.4.3.6                                */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -104,13 +104,13 @@ returns
   (Result TString16)
 as
 begin
-  Result = '0.4.1.8';
+  Result = '0.4.3.6';
   suspend;
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_CoreRights
 returns
-  (Result TString64)
+  (Result TString63)
 as
 begin
   Result = 'PeopleRelay Team';
@@ -128,7 +128,7 @@ end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_CoreSite
 returns
-  (Result TString64)
+  (Result TString63)
 as
 begin
   Result = 'www.peoplerelay.com';
@@ -147,7 +147,7 @@ end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_ProdRights
 returns
-  (Result TString64)
+  (Result TString63)
 as
 begin
   Result = 'PeopleRelay Team';
@@ -156,7 +156,7 @@ end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_ProdName
 returns
-  (Result TString64)
+  (Result TString63)
 as
 begin
   Result = 'PeopleRelay';
@@ -165,7 +165,7 @@ end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_ProdSite
 returns
-  (Result TString64)
+  (Result TString63)
 as
 begin
   Result = 'www.peoplerelay.com';
@@ -174,7 +174,7 @@ end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_Comments
 returns
-  (Result TString64)
+  (Result TString63)
 as
 begin
   Result = null;
@@ -185,7 +185,7 @@ end^
 create procedure P_Info
 returns
   (Name TString32,
-  Data TString64)
+  Data TString63)
 as
   declare s TSysStr32;
 begin
@@ -197,6 +197,9 @@ begin
   suspend;
   Name = 'UDF Lib Version';
   Data = LibVer();
+  suspend;
+  Name = 'Identity Hash';
+  select Result from SYS_IdentHash into :Data;
   suspend;
   Name = 'Metadata Hash';
   select Result from SYS_MetaHash into :Data;
@@ -257,5 +260,6 @@ grant execute on procedure P_ProdName to procedure P_Info;
 grant execute on procedure P_ProdRights to procedure P_Info;
 
 grant execute on procedure SYS_MetaHash to procedure P_Info;
+grant execute on procedure SYS_IdentHash to procedure NM_Info;
 grant execute on procedure P_Info to PUBLIC;
 /*-----------------------------------------------------------------------------------------------*/

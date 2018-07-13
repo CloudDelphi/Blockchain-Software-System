@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: quorum.sql Version: 0.4.1.8                                 */
+/* PeopleRelay: quorum.sql Version: 0.4.3.6                                 */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -94,11 +94,14 @@ create table P_TQuorum(
   RecId             TRid,
   RepKind           TRepKind,
   Acceptor          TBoolean,
-  Fortran           TBoolean, /* if = 1 do formula translation */
-  Pct               TPercent,
-  MinNdCnt          TCount,
-  MaxNdCnt          TCount,
+  MinCount          TCount,
+  MaxCount          TCount,
+
+  Quorum            TFormula not null,
+  Assent            TFormula not null,
+
   Formula           TFormula, /* N is Node count, eg: N / 2 + 1 */
+
   Comment           TComment,
   CreatedBy         TOperName,
   ChangedBy         TOperName,
@@ -107,7 +110,7 @@ create table P_TQuorum(
   primary key       (RecId),
   foreign key       (RepKind,Acceptor) references P_TNodeKind(RepKind,Acceptor));
 /*-----------------------------------------------------------------------------------------------*/
-create unique index P_XU$Quorum on P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt);
+create unique index P_XU$Quorum on P_TQuorum(RepKind,Acceptor,MinCount,MaxCount);
 /*-----------------------------------------------------------------------------------------------*/
 set term ^ ;
 /*-----------------------------------------------------------------------------------------------*/
@@ -127,7 +130,8 @@ begin
   else
     begin
       Result = Upper(Formula);
-      Expr = Replace(Result,'N',1234567890);
+      Expr = Replace(Result,'N',1234567890); /* Total count of P_TPeer table */
+      Expr = Replace(Expr,'Q',1234567890); /* Value (calculated) of Quorum field */
       execute procedure Math_Interpret(Expr) returning_values r;
     end
 end^
@@ -136,6 +140,7 @@ create trigger P_TBI$TQuorum for P_TQuorum active before insert position 0
 as
 begin
   if (new.RecId is null) then new.RecId = gen_id(P_G$Quorum,1);
+  execute procedure P_TestFormula(new.Quorum) returning_values new.Quorum;
   execute procedure P_TestFormula(new.Formula) returning_values new.Formula;
   new.CreatedBy = CURRENT_USER;
   new.CreatedAt = UTCTime();
@@ -146,6 +151,8 @@ end^
 create trigger P_TBU$TQuorum for P_TQuorum active before update position 0
 as
 begin
+  execute procedure P_TestFormula(new.Quorum) returning_values new.Quorum;
+  execute procedure P_TestFormula(new.Assent) returning_values new.Assent;
   execute procedure P_TestFormula(new.Formula) returning_values new.Formula;
 
   new.RecId = old.RecId;
@@ -155,17 +162,80 @@ begin
   new.ChangedAt = UTCTime();
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_VoteLim(
+create procedure P_GetQuorum(
   RepKind TRepKind,
-  Acceptor TTrilean)
+  Acceptor TTrilean,
+  N TCount)
+returns
+  (Result TCount)
+as
+  declare ac TBoolean;
+  declare bb TBoolean;
+  declare Formula TFormula;
+  declare Expr TExpression;
+begin
+
+  select Acceptor,Broadband from P_TParams into :ac,:bb;
+  if (bb = 1 and RepKind <> 2)
+  then
+    Acceptor = 0;
+  else
+    if (Acceptor = -1) then Acceptor = ac;
+
+  if (N <= 0) then
+    select
+        count(*)
+      from
+        P_TPeer
+      where Enabled = 1
+        and Status >= 0
+        and (:Acceptor = 0 or Acceptor = 1)
+      into :N;
+
+  begin
+    if (N <= 0)
+    then
+      Result = 0;
+    else
+      begin
+        select first 1
+            Quorum
+          from
+            P_TQuorum
+          where RepKind = :RepKind
+            and Acceptor = :Acceptor
+            and MinCount < :N
+            and MaxCount >= :N
+          into
+            :Formula;
+
+        Expr = Replace(Formula,'N',N);
+        execute procedure Math_Interpret(Expr) returning_values Result;
+        if (Result > N)
+        then
+          Result = N;
+        else
+          if (Result < 0)  then Result = 0;
+      end
+
+    when any do
+    begin
+      Result = 0;
+      execute procedure P_LogErr(-30,sqlcode,gdscode,sqlstate,'P_GetQuorum',Formula,null,null);
+    end
+  end
+end^
+/*-----------------------------------------------------------------------------------------------*/
+create procedure P_GetAssent(
+  RepKind TRepKind,
+  Acceptor TTrilean,
+  Quorum TCount)
 returns
   (Result TCount)
 as
   declare N TCount;
   declare ac TBoolean;
   declare bb TBoolean;
-  declare Pct TPercent;
-  declare Fortran TBoolean;
   declare Formula TFormula;
   declare Expr TExpression;
 begin
@@ -180,78 +250,65 @@ begin
   select
       count(*)
     from
-      P_TNode
+      P_TPeer
     where Enabled = 1
       and Status >= 0
       and (:Acceptor = 0 or Acceptor = 1)
     into :N;
 
+  if (Quorum <= 0) then
+    execute procedure P_GetQuorum(RepKind,Acceptor,N) returning_values Quorum;
+
   begin
-    if (N <= 0)
+    if (N <= 0 or Quorum <= 0)
     then
       Result = 0;
     else
       begin
         select first 1
-            Pct,
-            Fortran,
-            Formula
+            Assent
           from
             P_TQuorum
           where RepKind = :RepKind
             and Acceptor = :Acceptor
-            and MinNdCnt < :N
-            and MaxNdCnt >= :N
+            and MinCount < :N
+            and MaxCount >= :N
           into
-            :Pct,
-            :Fortran,
             :Formula;
 
-        if (Pct > 0 and Fortran = 0)
+        Expr = Replace(Formula,'Q',N);
+        Expr = Replace(Expr,'N',N);
+        execute procedure Math_Interpret(Expr) returning_values Result;
+        if (Result > Quorum)
         then
-          Result = Round((Pct * N) / 100.000,0);
+          Result = Quorum;
         else
-          if (Formula is null)
-          then
-            Result = N / 2 + 1;
-          else
-            begin
-              Expr = Replace(Formula,'N',N);
-              execute procedure Math_Interpret(Expr) returning_values Result;
-              if (Result > N)
-              then
-                Result = N;
-              else
-                if (Result < 0)  then Result = 1;
-            end
+          if (Result < 0)  then Result = 0;
+
       end
 
     when any do
     begin
-      if (N <= 0)
-      then
-        Result = 0;
-      else
-        Result = N / 2 + 1;
-      execute procedure P_LogErr(-30,sqlcode,gdscode,sqlstate,'P_VoteLim','Error',null,null);
+      Result = 2000000000;
+      execute procedure P_LogErr(-31,sqlcode,gdscode,sqlstate,'P_GetAssent',null,null,null);
     end
   end
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_QuorumAcc(RepKind TRepKind)
+create procedure P_AssentAcc(RepKind TRepKind)
 returns
   (Result TCount)
 as
 begin
-  execute procedure P_VoteLim(RepKind,1) returning_values Result;
+  execute procedure P_GetAssent(RepKind,1,-1) returning_values Result;
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_QuorumTot(RepKind TRepKind)
+create procedure P_AssentTot(RepKind TRepKind)
 returns
   (Result TCount)
 as
 begin
-  execute procedure P_VoteLim(RepKind,0) returning_values Result;
+  execute procedure P_GetAssent(RepKind,0,-1) returning_values Result;
 end^
 /*-----------------------------------------------------------------------------------------------*/
 set term ; ^
@@ -264,13 +321,20 @@ grant execute on procedure P_TestFormula to trigger P_TBI$TQuorum;
 grant execute on procedure P_TestFormula to trigger P_TBU$TQuorum;
 grant execute on procedure Math_Interpret to procedure P_TestFormula;
 
-grant select on P_TNode to procedure P_VoteLim;
-grant select on P_TParams to procedure P_VoteLim;
-grant select on P_TQuorum to procedure P_VoteLim;
-grant execute on procedure P_LogErr to procedure P_VoteLim;
-grant execute on procedure Math_Interpret to procedure P_VoteLim;
+grant select on P_TPeer to procedure P_GetQuorum;
+grant select on P_TParams to procedure P_GetQuorum;
+grant select on P_TQuorum to procedure P_GetQuorum;
+grant execute on procedure P_LogErr to procedure P_GetQuorum;
+grant execute on procedure Math_Interpret to procedure P_GetQuorum;
 
-grant execute on procedure P_VoteLim to procedure P_QuorumAcc;
-grant execute on procedure P_VoteLim to procedure P_QuorumTot;
+grant select on P_TPeer to procedure P_GetAssent;
+grant select on P_TParams to procedure P_GetAssent;
+grant select on P_TQuorum to procedure P_GetAssent;
+grant execute on procedure P_LogErr to procedure P_GetAssent;
+grant execute on procedure P_GetQuorum to procedure P_GetAssent;
+grant execute on procedure Math_Interpret to procedure P_GetAssent;
+
+grant execute on procedure P_GetAssent to procedure P_AssentAcc;
+grant execute on procedure P_GetAssent to procedure P_AssentTot;
 /*-----------------------------------------------------------------------------------------------*/
 

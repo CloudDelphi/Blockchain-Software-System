@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: params.sql Version: 0.4.1.8                                 */
+/* PeopleRelay: params.sql Version: 0.4.3.6                                 */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -69,12 +69,11 @@ create table P_TParams(
   PingDelay         TTimeGap default 30.0 not null, /* seconds, Allowed Max Ping Time, do repl if Ping time <= PingDelay only */
   PingCount         TUInt1, /* How many times to call ping to get avg delay */
 
-  IpMaskLen         TUInt, /* Ip Mask length CIDR Classless Inter-Domain Routing */
   StaticIP          TIPV6str,
   APort             TPort default '3050' not null,
   ExtAcc            TUserName default '-' not null, /* External User Name, to get data */
   ExtPWD            TPWD default '-' not null,
-  NDOverlap         TUInt,            /* RecId overlap for repl P_TNode. Do not set it > 0 if you don't know wat you do exactly. */
+  NDOverlap         TUInt,  /* RecId overlap for repl P_TPeer. Do not set it > 0 if you don't know wat you do exactly. */
   MPOverlap         TUInt,  /* RecId overlap for repl Melting Pot. */
 
   MPTokenBus        TBoolean, /* if = 1 then do Replicate P_TMPVoter */
@@ -86,29 +85,27 @@ create table P_TParams(
 
 
   ChckHshCL         TBoolean default 1, /*(Client) If = 1 then verify block Hash while insert new Block into Acceptor DB */
-  ChckSigCL         TBoolean default 1, /*(Client) If = 1 then verify LoadSig while insrt new Block into Acceptor DB */
+  ChckSigCL         TBoolean default 1, /*(Client) If = 1 then verify BSig while insrt new Block into Acceptor DB */
 
   ChckHshCH         TBoolean default 1, /* If = 1 then verify block Hash while replicate Chain */
-  ChckLcsCH         TBoolean default 1, /* If = 1 then verify LocalSig while replicate Chain */
-  ChckSigCH         TBoolean default 1, /* If = 1 then verify LoadSig while replicate Chain */
+  ChckTmSCH         TBoolean default 1, /* If = 1 then verify TmpSig while replicate Chain */
+  ChckSigCH         TBoolean default 1, /* If = 1 then verify BSig while replicate Chain */
 
   ChckHshMP         TBoolean default 1, /* If = 1 then verify block Hash while replicate Melting Pot */
-  ChckLcsMP         TBoolean default 1, /* If = 1 then verify LocalSig while replicate Melting Pot */
-  ChckSigMP         TBoolean default 1, /* If = 1 then verify LoadSig while replicate Melting Pot */
+  ChckTmSMP         TBoolean default 1, /* If = 1 then verify TmpSig while replicate Melting Pot */
+  ChckSigMP         TBoolean default 1, /* If = 1 then verify BSig while replicate Melting Pot */
 
   ChckIdNdAcc       TBoolean default 1, /* If = 1 then verify NodeId while register Node and replicate Node List, if Node is Acceptor */
   ChckIdNdOrd       TBoolean default 1, /* If = 1 then verify NodeId while register Node and replicate Node List, if Node is not Acceptor */
-  ChckLcsNdAcc      TBoolean default 1, /* If = 1 then verify LocalSig while replicate Node List, if Node is Acceptor */
-  ChckLcsNdOrd      TBoolean default 1, /* If = 1 then verify LocalSig while replicate Node List, if Node is not Acceptor */
-  ChckSigNdAcc      TBoolean default 1, /* If = 1 then verify LoadSig while register Node and replicate Node List, if Node is Acceptor */
-  ChckSigNdOrd      TBoolean default 1, /* If = 1 then verify LoadSig while register Node and replicate Node List, if Node is not Acceptor */
+  ChckTmSNdAcc      TBoolean default 1, /* If = 1 then verify TmpSig while replicate Node List, if Node is Acceptor */
+  ChckTmSNdOrd      TBoolean default 1, /* If = 1 then verify TmpSig while replicate Node List, if Node is not Acceptor */
+  ChckSigNdAcc      TBoolean default 1, /* If = 1 then verify NodeSig while register Node and replicate Node List, if Node is Acceptor */
+  ChckSigNdOrd      TBoolean default 1, /* If = 1 then verify NodeSig while register Node and replicate Node List, if Node is not Acceptor */
 
   MetaCheckPut      TBoolean, /* If = 1 then do check a peer db objects identity before register */
   MetaCheckGet      TBoolean default 1, /* If = 1 then do check a peer db objects identity before pull data */
   TimeSlice         TInt32 default 10 not null, /* Work Time Slice in minutes */
   SyncSpan          TUInt1 default 5,  /* Sync interval in seconds. */
-
-  RLLinger          TUInt1 default 7,  /* to delete records from P_TRegAim. */
 
   MPQFactor         TUInt1 default 7,    /* Minimum Sync rounds before do Chain Commit. */
   MPLinger          TUInt1 default 4096, /* delete records from Melting Pot. */
@@ -131,16 +128,18 @@ create table P_TParams(
   MsgLogMode        TLogMode, /* If = 0, no log at all; If = 1, Err only; If = 2, Msg only; If = 3, Errs & Msgs */
   RplLogMode        TLogMode, /* Replication Log; If = 0, no log at all; If = 1, Err only; If = 2, Msg only; If = 3, Errs & Msgs */
 
-  ExpelBadLcs       TBoolean default 1, /* Expel node having Bad Local Signature. */
+  ExpelBadTmS       TBoolean default 1, /* Expel node having Bad Local Signature. */
   ExpelBadMeta      TBoolean default 1, /* Expel node having Bad Node Metadata. */
   ExpelBadHash      TBoolean default 1, /* Expel node having Bad Bolock Hash. */
   ExpelBadSign      TBoolean default 1, /* Expel node having Bad Bolock Signature. */
-  Broadband         TBoolean, /* if = 0 then Acceptors can communicate with ordinal nodes */
+  Broadband         TBoolean, /* if = 1 then Acceptors can communicate with ordinal nodes */
 
   Handshake         THandshake, /* if > 0 then perform Handshake protocol the version of Handshake value */
   NdPubFilter       TNdFilter,  /* 0 - Peer not allowed to get our Node List at all; 1 - Acceptors; 2 - Ordinal; 3 - all Nodes are welcome */
   NdRegFilter       TNdFilter,  /* 0 - not allow register any Node in Self Node List at all; 1 - Acceptors; 2 - Ordinal; 3 - all Nodes are welcome */
-  NodeListSync      TNdFilter,  /* 0 - not allow sync any Node in Self Node List at all; 1 - Acceptors; 2 - Ordinal; 3 - all Nodes are welcome */
+  PeersSync         TNdFilter,  /* 0 - not allow sync any Node in Self Node List at all; 1 - Acceptors; 2 - Ordinal; 3 - all Nodes are welcome */
+  ChainSync         TBoolean default 1,   /* 0 - do not sync blockchain */
+
   NdLstSizeAcc      TCount default 4096, /* Max count of Acceptor nodes in the Node List in records */
   NdLstHoldAcc      TNdLsHold, /* 0 - not care at all; 1 - Do not add new Node; 2 - add new Node then del low rating Nodes */
   NdLstSizeOrd      TCount default 8192, /* Max count of ordinary nodes in the Node List in records */
@@ -164,7 +163,7 @@ create table P_TParams(
   DefAddress        TAddress,
   DefSenderId       TSenderId,
   SigHash           TIntHash,
-  LoadSig           TSig,
+  NodeSig           TSig,
   PubKey            TKey,
   PvtKey            TKey,
   AlteredAt         TTimeMark,
@@ -228,7 +227,7 @@ begin
       new.NodeId = old.NodeId;
 
     new.ExtAcc = Upper(new.ExtAcc);
-    new.LoadSig = old.LoadSig;
+    new.NodeSig = old.NodeSig;
     new.SigHash = old.SigHash;
 
     if (new.ExtAcc is distinct from old.ExtAcc) then
@@ -269,7 +268,7 @@ begin
         if (new.PvtKey is null) then
         begin
           new.PubKey = null;
-          new.LoadSig = null;
+          new.NodeSig = null;
           new.SigHash = null;
         end
 */
@@ -277,7 +276,7 @@ begin
         if (new.PvtKey is null)
         then
           begin
-            new.LoadSig = null;
+            new.NodeSig = null;
             new.SigHash = null;
           end
         else
@@ -290,13 +289,12 @@ begin
               (select Result from SYS_DBName),
               new.ExtAcc,
               new.ExtPWD) returning_values AHash;
-            execute procedure P_SysSig(AHash,new.PvtKey) returning_values new.LoadSig;
-            new.SigHash = Hash(new.LoadSig);
+            execute procedure P_SysSig(AHash,new.PvtKey) returning_values new.NodeSig;
+            new.SigHash = Hash(new.NodeSig);
           end
       end
     else
       if (new.Status is distinct from old.Status
-        or new.IpMaskLen is distinct from old.IpMaskLen
         or new.StaticIP is distinct from old.StaticIP)
       then
         new.AlteredAt = UTCTime();
@@ -397,11 +395,14 @@ begin
       Cluster = uuid_to_Char(gen_uuid());
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_GetNodeData
+create procedure P_GetNodeInfo
 returns
   (Result TMemo)
 as
+  declare Sig TSig;
+  declare AKey TKey;
 begin
+  select NodeSig,PubKey from P_TParams into :Sig,:AKey;
   Result = '[Main]' || ASCII_CHAR(10)
     || 'NodeId=' || (select NodeId from P_TParams) || ASCII_CHAR(10)
     || 'Alias=' || (select Alias from P_TParams) || ASCII_CHAR(10)
@@ -410,27 +411,8 @@ begin
     || 'Port=' || (select APort from P_TParams) || ASCII_CHAR(10)
     || 'Path=' || (select Result from SYS_DBName) || ASCII_CHAR(10)
     || 'Account=' || (select ExtAcc from P_TParams) || ASCII_CHAR(10)
-    || 'Password=' || (select ExtPWD from P_TParams);
-  suspend;
-end^
-/*-----------------------------------------------------------------------------------------------*/
-create procedure P_GetCliData
-returns
-  (Result TMemo)
-as
-  declare Sig TSig;
-  declare AKey TKey;
-begin
-  select LoadSig,PubKey from P_TParams into :Sig,:AKey;
-  Result = '[Main]' || ASCII_CHAR(10)
-    || 'NodeId=' || (select NodeId from P_TParams) || ASCII_CHAR(10)
-    || 'Alias=' || (select Alias from P_TParams) || ASCII_CHAR(10)
-    || 'IP=' || (select Result from SYS_IP) || ASCII_CHAR(10)
-    || 'Port=' || (select APort from P_TParams) || ASCII_CHAR(10)
-    || 'Path=' || (select Result from SYS_DBName) || ASCII_CHAR(10)
-    || 'Account=P_Client' || ASCII_CHAR(10)
-    || 'Password=PeopleRelay' || ASCII_CHAR(10)
-    || '[LoadSig]' || ASCII_CHAR(10) || (select Result from WrapText(64,:Sig)) || ASCII_CHAR(10)
+    || 'Password=' || (select ExtPWD from P_TParams)|| ASCII_CHAR(10)
+    || '[NodeSig]' || ASCII_CHAR(10) || (select Result from WrapText(64,:Sig)) || ASCII_CHAR(10)
     || '[PubKey]' || ASCII_CHAR(10) || (select Result from WrapText(64,:AKey));
   suspend;
 end^
@@ -464,12 +446,9 @@ grant all on P_TParams to procedure P_DoInit;
 grant all on P_TParams to procedure P_InitNode;
 grant all on P_TTransponder to procedure P_InitTransponder;
 
-grant select on P_TParams to procedure P_GetNodeData;
-grant execute on procedure SYS_IP to procedure P_GetNodeData;
-grant execute on procedure SYS_DBName to procedure P_GetNodeData;
-
-grant select on P_TParams to procedure P_GetCliData;
-grant execute on procedure SYS_IP to procedure P_GetCliData;
-grant execute on procedure SYS_DBName to procedure P_GetCliData;
+grant select on P_TParams to procedure P_GetNodeInfo;
+grant execute on procedure SYS_IP to procedure P_GetNodeInfo;
+grant execute on procedure WrapText to procedure P_GetNodeInfo;
+grant execute on procedure SYS_DBName to procedure P_GetNodeInfo;
 /*-----------------------------------------------------------------------------------------------*/
 

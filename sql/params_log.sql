@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: params_log.sql Version: 0.4.1.8                             */
+/* PeopleRelay: params_log.sql Version: 0.4.3.6                             */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -32,7 +32,6 @@ create table P_TPrmLog(
   PingDelay         TTimeGap default 30.0 not null,
   PingCount         TUInt1,
 
-  IpMaskLen         TUInt,
   StaticIP          TIPV6str,
   APort             TPort default '3050' not null,
   ExtAcc            TUserName default '-' not null,
@@ -47,22 +46,21 @@ create table P_TPrmLog(
   NDQuorumAcc       TBoolean,
   CHQuorumAcc       TBoolean,
 
-
   ChckHshCL         TBoolean default 1,
   ChckSigCL         TBoolean default 1,
 
   ChckHshCH         TBoolean default 1,
-  ChckLcsCH         TBoolean default 1,
+  ChckTmSCH         TBoolean default 1,
   ChckSigCH         TBoolean default 1,
 
   ChckHshMP         TBoolean default 1,
-  ChckLcsMP         TBoolean default 1,
+  ChckTmSMP         TBoolean default 1,
   ChckSigMP         TBoolean default 1,
 
   ChckIdNdAcc       TBoolean default 1,
   ChckIdNdOrd       TBoolean default 1,
-  ChckLcsNdAcc      TBoolean default 1,
-  ChckLcsNdOrd      TBoolean default 1,
+  ChckTmSNdAcc      TBoolean default 1,
+  ChckTmSNdOrd      TBoolean default 1,
   ChckSigNdAcc      TBoolean default 1,
   ChckSigNdOrd      TBoolean default 1,
 
@@ -70,8 +68,6 @@ create table P_TPrmLog(
   MetaCheckGet      TBoolean default 1,
   TimeSlice         TInt32 default 10 not null,
   SyncSpan          TUInt1 default 5,
-
-  RLLinger          TUInt1 default 7,
 
   MPQFactor         TUInt1 default 7,
   MPLinger          TUInt1 default 4096,
@@ -93,7 +89,7 @@ create table P_TPrmLog(
   SndLogMode        TLogMode,
   MsgLogMode        TLogMode,
   RplLogMode        TLogMode,
-  ExpelBadLcs       TBoolean,
+  ExpelBadTmS       TBoolean,
   ExpelBadMeta      TBoolean default 1,
   ExpelBadHash      TBoolean default 1,
   ExpelBadSign      TBoolean default 1,
@@ -102,7 +98,8 @@ create table P_TPrmLog(
   Handshake         THandshake,
   NdPubFilter       TNdFilter,
   NdRegFilter       TNdFilter,
-  NodeListSync      TNdFilter,
+  PeersSync         TNdFilter,
+  ChainSync         TBoolean,
   NdLstSizeAcc      TCount default 4096,
   NdLstHoldAcc      TNdLsHold,
   NdLstSizeOrd      TCount default 8192,
@@ -126,7 +123,7 @@ create table P_TPrmLog(
   DefAddress        TAddress,
   DefSenderId       TSenderId,
   SigHash           TIntHash,
-  LoadSig           TSig,
+  NodeSig           TSig,
   PubKey            TKey,
   PvtKey            TKey,
   AlteredAt         TTimeMark,

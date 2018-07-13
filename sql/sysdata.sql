@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: sysdata.sql Version: 0.4.1.8                                */
+/* PeopleRelay: sysdata.sql Version: 0.4.3.6                                */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -47,92 +47,92 @@ insert into P_TNodeKind(RepKind,Acceptor,Name) values(4,1,'Acceptor');
 insert into P_TNodeKind(RepKind,Acceptor,Name) values(5,1,'Acceptor');
 insert into P_TNodeKind(RepKind,Acceptor,Name) values(6,1,'Acceptor');
 /*-----------------------------------------------------------------------------------------------*/
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(0,0,100,0,3);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(0,0,100,3,5);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(0,0,100,5,10);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(0,0,71,10,100);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(0,0,11,100,1000);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(0,0,5.1,1000,1000000);
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(0,0,0,3,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(0,0,3,5,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(0,0,5,10,'N','Q'); /* 100% */
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(0,0,10,100,'N * 71 / 100','Q'); /* 71% */
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(0,0,100,1000,'N * 11 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(0,0,1000,1000000,'N * 5.1 / 100','Q');
 
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(0,1,100,0,3);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(0,1,100,3,5);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(0,1,100,5,10);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(0,1,71,10,100);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(0,1,11,100,1000);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(0,1,5.1,1000,1000000);
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(0,1,0,3,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(0,1,3,5,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(0,1,5,10,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(0,1,10,100,'N * 71 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(0,1,100,1000,'N * 11 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(0,1,1000,1000000,'N * 5.1 / 100','Q');
 /*---------------------*/
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(1,0,100,0,3);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(1,0,100,3,5);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(1,0,100,5,10);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(1,0,71,10,100);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(1,0,11,100,1000);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(1,0,5.1,1000,1000000);
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(1,0,0,3,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(1,0,3,5,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(1,0,5,10,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(1,0,10,100,'N * 71 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(1,0,100,1000,'N * 11 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(1,0,1000,1000000,'N * 5.1 / 100','Q');
 
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(1,1,100,0,3);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(1,1,100,3,5);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(1,1,100,5,10);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(1,1,71,10,100);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(1,1,11,100,1000);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(1,1,5.1,1000,1000000);
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(1,1,0,3,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(1,1,3,5,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(1,1,5,10,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(1,1,10,100,'N * 71 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(1,1,100,1000,'N * 11 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(1,1,1000,1000000,'N * 5.1 / 100','Q');
 /*---------------------*/
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(2,0,0,0,1000000);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(2,1,100,0,1000000);
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(2,0,0,1000000,'0','0');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(2,1,0,1000000,'N','Q');
 /*---------------------*/
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(3,0,100,0,3);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(3,0,100,3,5);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(3,0,100,5,10);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(3,0,71,10,100);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(3,0,11,100,1000);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(3,0,5.1,1000,1000000);
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(3,0,0,3,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(3,0,3,5,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(3,0,5,10,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(3,0,10,100,'N * 71 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(3,0,100,1000,'N * 11 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(3,0,1000,1000000,'N * 5.1 / 100','Q');
 
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(3,1,100,0,3);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(3,1,100,3,5);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(3,1,100,5,10);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(3,1,71,10,100);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(3,1,11,100,1000);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(3,1,5.1,1000,1000000);
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(3,1,0,3,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(3,1,3,5,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(3,1,5,10,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(3,1,10,100,'N * 71 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(3,1,100,1000,'N * 11 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(3,1,1000,1000000,'N * 5.1 / 100','Q');
 /*---------------------*/
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(4,0,100,0,3);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(4,0,100,3,5);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(4,0,100,5,10);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(4,0,71,10,100);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(4,0,11,100,1000);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(4,0,5.1,1000,1000000);
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(4,0,0,3,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(4,0,3,5,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(4,0,5,10,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(4,0,10,100,'N * 71 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(4,0,100,1000,'N * 11 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(4,0,1000,1000000,'N * 5.1 / 100','Q');
 
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(4,1,100,0,3);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(4,1,100,3,5);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(4,1,100,5,10);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(4,1,71,10,100);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(4,1,11,100,1000);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(4,1,5.1,1000,1000000);
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(4,1,0,3,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(4,1,3,5,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(4,1,5,10,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(4,1,10,100,'N * 71 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(4,1,100,1000,'N * 11 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(4,1,1000,1000000,'N * 5.1 / 100','Q');
 /*---------------------*/
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(5,0,100,0,3);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(5,0,100,3,5);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(5,0,100,5,10);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(5,0,71,10,100);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(5,0,11,100,1000);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(5,0,5.1,1000,1000000);
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(5,0,0,3,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(5,0,3,5,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(5,0,5,10,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(5,0,10,100,'N * 71 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(5,0,100,1000,'N * 11 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(5,0,1000,1000000,'N * 5.1 / 100','Q');
 
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(5,1,100,0,3);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(5,1,100,3,5);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(5,1,100,5,10);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(5,1,71,10,100);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(5,1,11,100,1000);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(5,1,5.1,1000,1000000);
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(5,1,0,3,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(5,1,3,5,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(5,1,5,10,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(5,1,10,100,'N * 71 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(5,1,100,1000,'N * 11 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(5,1,1000,1000000,'N * 5.1 / 100','Q');
 /*---------------------*/
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(6,0,100,0,3);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(6,0,100,3,5);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(6,0,100,5,10);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(6,0,71,10,100);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(6,0,11,100,1000);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(6,0,5.1,1000,1000000);
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(6,0,0,3,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(6,0,3,5,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(6,0,5,10,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(6,0,10,100,'N * 71 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(6,0,100,1000,'N * 11 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(6,0,1000,1000000,'N * 5.1 / 100','Q');
 
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(6,1,100,0,3);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(6,1,100,3,5);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(6,1,100,5,10);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(6,1,71,10,100);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(6,1,11,100,1000);
-insert into P_TQuorum(RepKind,Acceptor,Pct,MinNdCnt,MaxNdCnt) values(6,1,5.1,1000,1000000);
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(6,1,0,3,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(6,1,3,5,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(6,1,5,10,'N','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(6,1,10,100,'N * 71 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(6,1,100,1000,'N * 11 / 100','Q');
+insert into P_TQuorum(RepKind,Acceptor,MinCount,MaxCount,Quorum,Assent) values(6,1,1000,1000000,'N * 5.1 / 100','Q');
 
 commit work;
 /*-----------------------------------------------------------------------------------------------*/

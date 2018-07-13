@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: pow.sql Version: 0.4.1.8                                    */
+/* PeopleRelay: pow.sql Version: 0.4.3.6                                    */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -50,7 +50,7 @@ as
 begin
   Puzzle = uuid_to_Char(gen_uuid());
   
-  if (exists (select 1 from P_TNode
+  if (exists (select 1 from P_TPeer
     where NodeId = :PeerId and PubKey is not null))
   then
     select Handshake from P_TParams into :HShake; /* else leave HShake with default val = 0 */
@@ -85,7 +85,7 @@ begin
         if (HShake = 1)
         then
           begin
-            select PubKey from P_TNode where NodeId = :PeerId into :AKey;
+            select PubKey from P_TPeer where NodeId = :PeerId into :AKey;
             if (rsaDecrypt(256,AKey,Proof) = Puzzle) then Result = 1;
           end
       when any do
@@ -126,11 +126,11 @@ grant select on P_TParams to procedure P_Handshake;
 grant execute on procedure P_LogErr to procedure P_Handshake;
 grant execute on procedure P_GetPvtKey to procedure P_Handshake;
 
-grant select on P_TNode to procedure P_NewHShake;
+grant select on P_TPeer to procedure P_NewHShake;
 grant select on P_TParams to procedure P_NewHShake;
 grant execute on procedure P_LogErr to procedure P_NewHShake;
 
-grant select on P_TNode to procedure P_CheckHShake;
+grant select on P_TPeer to procedure P_CheckHShake;
 grant execute on procedure P_LogErr to procedure P_CheckHShake;
 
 grant execute on procedure Rand32 to procedure P_FindHash;

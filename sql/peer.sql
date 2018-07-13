@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: node.sql Version: 0.4.3.6                                   */
+/* PeopleRelay: peer.sql Version: 0.4.3.6                                   */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -17,14 +17,14 @@
 /* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
-create generator P_G$Node;
+create generator P_G$Peer;
 create generator P_G$NDSid;
 
 create generator P_G$MPLid;
 create generator P_G$NDLid;
 create generator P_G$ReplLog;
 /*-----------------------------------------------------------------------------------------------*/
-create table P_TNode(
+create table P_TPeer(
   RecId             TRid,
   Sid               TRid unique, /* Serial Id */
   NodeId            TNodeId not null,
@@ -32,9 +32,7 @@ create table P_TNode(
   Status            TNdStatus,
   Enabled           TBoolean default 1,
   Acceptor          TBoolean,
-  Proxy             TBoolean, /* Has Dimmed nodes */
   Dimmed            TBoolean, /* SubNet */
-  IpMaskLen         TUInt, /* Ip Mask length CIDR Classless Inter-Domain Routing */
   IP                TIPV6str not null,
   APort             TPort default '3050',
   APath             TPath not null,
@@ -46,8 +44,9 @@ create table P_TNode(
   Comment           TComment,
   EditTime          TTimeMark, /* Time when id fields were edited */
 
-  LoadSig           TSig,
-  LocalSig          TSig,
+  SigHash           TIntHash,
+  NodeSig           TSig,
+  TmpSig            TSig,
 
   PubKey            TKey,
   CreatedBy         TOperName,
@@ -56,13 +55,13 @@ create table P_TNode(
   ChangedAt         TTimeMark not null,
   primary key       (RecId));
 /*-----------------------------------------------------------------------------------------------*/
-create unique index P_XU$Node1 on P_TNode(NodeId);
-create unique descending index P_XU$Node2 on P_TNode(NodeId);
+create unique index P_XU$Node1 on P_TPeer(NodeId);
+create unique descending index P_XU$Node2 on P_TPeer(NodeId);
 
-create index P_X$Node1 on P_TNode(Acceptor);
-create index P_X$Node2 on P_TNode(Enabled);
-create index P_X$Node3 on P_TNode(Dimmed);
-create index P_X$Node4 on P_TNode(NodeId,LoadSig,Status,IP); /* P_HasNode */
+create index P_X$Node1 on P_TPeer(Acceptor);
+create index P_X$Node2 on P_TPeer(Enabled);
+create index P_X$Node3 on P_TPeer(Dimmed);
+create index P_X$Node4 on P_TPeer(NodeId,NodeSig,Status,IP); /* P_HasNode */
 /*-----------------------------------------------------------------------------------------------*/
 set term ^ ;
 /*-----------------------------------------------------------------------------------------------*/
@@ -99,8 +98,8 @@ create procedure P_CheckNode(
   APath TPath,
   ExtAcc TUserName,
   ExtPWD TPWD,
-  LoadSig TSig,
-  LocalSig TSig,
+  NodeSig TSig,
+  TmpSig TSig,
   PubKey TKey,
   PeerKey TKey)
 returns
@@ -136,10 +135,10 @@ begin
     or APath is null or APath = ''
     or ExtAcc is null or ExtAcc = ''
     or ExtPWD is null or ExtPWD = ''
-    or LoadSig is null or LoadSig = ''
+    or NodeSig is null or NodeSig = ''
     or PubKey is null or PubKey = ''
     or (Caller > 1 and (PeerKey is null or PeerKey = ''))
-    or (Caller > 1 and (LocalSig is null or LocalSig = '')))
+    or (Caller > 1 and (TmpSig is null or TmpSig = '')))
   then
     execute procedure P_LogErr(-140,0,0,0,s,NodeId,'Data has NULLS',nm);
   else
@@ -148,8 +147,8 @@ begin
       select
           ChckIdNdAcc,
           ChckIdNdOrd,
-          ChckLcsNdAcc,
-          ChckLcsNdOrd,
+          ChckTmSNdAcc,
+          ChckTmSNdOrd,
           ChckSigNdAcc,
           ChckSigNdOrd
         from
@@ -176,11 +175,11 @@ begin
         and Caller > 1
         and ((Acceptor = 1 and ChckLcA = 1) or (Acceptor = 0 and ChckLcO = 1))) then
       begin
-        execute procedure P_IsSysSig(NodeId,LocalSig,PeerKey) returning_values ATest;
+        execute procedure P_IsSysSig(NodeId,TmpSig,PeerKey) returning_values ATest;
         if (ATest = 0) then
         begin
           Result = 0;
-          execute procedure P_LogErr(-142,0,0,0,s,NodeId,'Bad LocalSig',nm);
+          execute procedure P_LogErr(-142,0,0,0,s,NodeId,'Bad TmpSig',nm);
         end
       end
 
@@ -195,11 +194,11 @@ begin
           APath,
           ExtAcc,
           ExtPWD) returning_values AHash;
-        execute procedure P_IsSysSig(AHash,LoadSig,PubKey) returning_values ATest;
+        execute procedure P_IsSysSig(AHash,NodeSig,PubKey) returning_values ATest;
         if (ATest = 0) then
         begin
           Result = 0;
-          execute procedure P_LogErr(-143,0,0,0,s,NodeId,'Bad LoadSig',nm);
+          execute procedure P_LogErr(-143,0,0,0,s,NodeId,'Bad NodeSig',nm);
         end
       end
 
@@ -213,13 +212,14 @@ begin
   suspend;
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create trigger P_TBI$TNode for P_TNode active before insert position 0
+create trigger P_TBI$TPeer for P_TPeer active before insert position 0
 as
 begin
-  new.RecId = gen_id(P_G$Node,1);
-  new.Sid = -new.RecId; /* Minus sign is here to prevent coinsedence of P_G$Node and P_G$NDSid */
+  new.RecId = gen_id(P_G$Peer,1);
+  new.Sid = -new.RecId; /* Minus sign is here to prevent coinsedence of P_G$Peer and P_G$NDSid */
   /* Cannot put Gen_Id(P_G$NDSid,1) here because of on exception, P_G$NDSid sequenced value will be lost */  
 
+  new.SigHash = Hash(new.NodeSig);
   new.ExtAcc = Upper(new.ExtAcc);
 
   new.CreatedAt = UTCTime();
@@ -229,14 +229,16 @@ begin
   if ((select Result from P_IsRepl) = 0) then new.EditTime = UTCTime();
 
   if (new.NodeId is not null) then
-    execute procedure P_SysSig(new.NodeId,null) returning_values new.LocalSig;
+    execute procedure P_SysSig(new.NodeId,null) returning_values new.TmpSig;
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create trigger P_TBU$TNode for P_TNode active before update position 0
+create trigger P_TBU$TPeer for P_TPeer active before update position 0
 as
 begin
   if ((select Result from P_IsNdSid) = 0) then
   begin
+    if (new.NodeSig is distinct from old.NodeSig) then new.SigHash = Hash(new.NodeSig);
+
     new.ExtAcc = Upper(new.ExtAcc);
 
     new.RecId = old.RecId;
@@ -254,9 +256,27 @@ begin
   if (new.NodeId is distinct from old.NodeId) then
     if (new.NodeId is null)
     then
-      new.LocalSig = null;
+      new.TmpSig = null;
     else
-      execute procedure P_SysSig(new.NodeId,null) returning_values new.LocalSig;
+      execute procedure P_SysSig(new.NodeId,null) returning_values new.TmpSig;
+end^
+/*-----------------------------------------------------------------------------------------------*/
+create trigger P_TAIU$TPeer for P_TPeer active after insert or update position 0
+as
+begin
+  if ((select Result from P_IsNdSid) = 0) then
+  begin
+    execute procedure P_BegNdSid;
+    update P_TPeer set Sid = gen_id(P_G$NDSid,1) where RecId = new.RecId;
+    /* Sid is continuous sequence; RecId sequence may contain gaps. */
+    execute procedure P_EndNdSid;
+
+    when any do
+    begin
+      execute procedure P_EndNdSid;
+      Exception;
+    end
+  end
 end^
 /*-----------------------------------------------------------------------------------------------*/
 set term ; ^
@@ -275,7 +295,7 @@ create table P_TReplLog(
   CreatedBy         TOperName,
   CreatedAt         TTimeMark not null,
   primary key       (RecId),
-  foreign key       (NodeRId) references P_TNode(RecId)
+  foreign key       (NodeRId) references P_TPeer(RecId)
     on update       CASCADE
     on delete       CASCADE);
 /*-----------------------------------------------------------------------------------------------*/
@@ -309,7 +329,7 @@ create table P_TMPidLog(
   CreatedBy         TOperName,
   CreatedAt         TTimeMark not null,
   primary key       (RecId),
-  foreign key       (ParId) references P_TNode(RecId)
+  foreign key       (ParId) references P_TPeer(RecId)
     on update       CASCADE
     on delete       CASCADE);
 /*-----------------------------------------------------------------------------------------------*/
@@ -339,7 +359,7 @@ create table P_TNDidLog(
   CreatedBy         TOperName,
   CreatedAt         TTimeMark not null,
   primary key       (RecId),
-  foreign key       (ParId) references P_TNode(RecId)
+  foreign key       (ParId) references P_TPeer(RecId)
     on update       CASCADE
     on delete       CASCADE);
 /*-----------------------------------------------------------------------------------------------*/
@@ -389,7 +409,7 @@ begin
   for select
       RecId
     from
-      P_TNode
+      P_TPeer
     into
       :NodeRId
     do
@@ -420,7 +440,7 @@ begin
       end
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_NodeRating(RecId TRid, NodeId TNodeId)
+create procedure P_PeerRating(RecId TRid, NodeId TNodeId)
 returns
   (Result TRating)
 as
@@ -428,7 +448,7 @@ begin
   suspend;
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_ClearNodeList
+create procedure P_ClearPeerList
 as
   declare RecCnt TCount;
   declare DelayO TUInt;
@@ -442,46 +462,49 @@ begin
   select NdLstSizeAcc,NdLstHoldAcc,NdDelDelayAcc,NdLstSizeOrd,NdLstHoldOrd,NdDelDelayOrd
     from P_TParams into :SizeA,:HoldA,:DelayO,:SizeO,:HoldO,:DelayA;
 
-  delete from P_TNode where Status < 0;
+  delete from P_TPeer where Status < 0;
 
   if (DelayO > 0) then
   begin
     DelTmLim = UTCTime() - DelayO;
-    delete from P_TNode where Enabled = 0 and Acceptor = 0 and ExpelTime < :DelTmLim;
+    delete from P_TPeer where Enabled = 0 and Acceptor = 0 and ExpelTime < :DelTmLim;
   end
   if (DelayA > 0) then
   begin
     DelTmLim = UTCTime() - DelayA;
-    delete from P_TNode where Enabled = 0 and Acceptor = 1 and ExpelTime < :DelTmLim;
+    delete from P_TPeer where Enabled = 0 and Acceptor = 1 and ExpelTime < :DelTmLim;
   end
 
   if (SizeO > 0 and HoldO = 2) then
   begin
-    select count(*) from P_TNode where Acceptor = 0 into :RecCnt;
+    select count(*) from P_TPeer where Acceptor = 0 into :RecCnt;
     if (RecCnt > SizeO) then
-      delete from P_TNode
+      delete from P_TPeer
         where Acceptor = 0
-        order by Enabled,(select Result from P_NodeRating(RecId,NodeId)) /* do not use desc here */
+        order by Enabled,(select Result from P_PeerRating(RecId,NodeId)) /* do not use desc here */
         rows (:RecCnt - :SizeO);
   end
   if (SizeA > 0 and HoldA = 2) then
   begin
-    select count(*) from P_TNode where Acceptor = 1 into :RecCnt;
+    select count(*) from P_TPeer where Acceptor = 1 into :RecCnt;
     if (RecCnt > SizeA) then
-      delete from P_TNode
+      delete from P_TPeer
         where Acceptor = 1
-        order by Enabled,(select Result from P_NodeRating(RecId,NodeId)) /* do not use desc here */
+        order by Enabled,(select Result from P_PeerRating(RecId,NodeId)) /* do not use desc here */
         rows (:RecCnt - :SizeA);
   end
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_SetNodeData(RecId TRef, AText TSysStr4K)
+create procedure P_SetPeerInfo(RecId TRef, AText TSysStr4K)
 as
+  declare NodeId TNodeId;
 begin
+  execute procedure ParamValue('Main','NodeId',:AText) returning_values NodeId;
+  if (exists (select 1 from P_TParams where NodeId = :NodeId)) then exception P_E$SelfNode;
   if (RecId is null or RecId = 0)
   then
     insert into
-      P_TNode(
+      P_TPeer(
         NodeId,
         Alias,
         Acceptor,
@@ -489,51 +512,66 @@ begin
         APort,
         APath,
         ExtAcc,
-        ExtPWD)
+        ExtPWD,
+        NodeSig,
+        PubKey)
       values(
-        (select Result from ParamValue('Main','NodeId',:AText)),
+        :NodeId,
         (select Result from ParamValue('Main','Alias',:AText)),
         (select Result from ParamValue('Main','Acceptor',:AText)),
         (select Result from ParamValue('Main','IP',:AText)),
         (select Result from ParamValue('Main','Port',:AText)),
         (select Result from ParamValue('Main','Path',:AText)),
         (select Result from ParamValue('Main','Account',:AText)),
-        (select Result from ParamValue('Main','Password',:AText)));
+        (select Result from ParamValue('Main','Password',:AText)),
+        (select Result from SectionBody('NodeSig',:AText)),
+        (select Result from SectionBody('PubKey',:AText)));
   else
-    update P_TNode
+    update P_TPeer
       set
-        NodeId = (select Result from ParamValue('Main','NodeId',:AText)),
+        NodeId = :NodeId,
         Alias = (select Result from ParamValue('Main','Alias',:AText)),
         Acceptor = (select Result from ParamValue('Main','Acceptor',:AText)),
         IP = (select Result from ParamValue('Main','IP',:AText)),
         APort = (select Result from ParamValue('Main','Port',:AText)),
         APath = (select Result from ParamValue('Main','Path',:AText)),
         ExtAcc = (select Result from ParamValue('Main','Account',:AText)),
-        ExtPWD = (select Result from ParamValue('Main','Password',:AText))
+        ExtPWD = (select Result from ParamValue('Main','Password',:AText)),
+        NodeSig = (select Result from SectionBody('NodeSig',:AText)),
+        PubKey = (select Result from SectionBody('PubKey',:AText))
       where RecId = :RecId;
 end^
 /*-----------------------------------------------------------------------------------------------*/
 set term ; ^
 /*-----------------------------------------------------------------------------------------------*/
-create view P_Node
+create view P_Peer
 as
   select
       *
     from
-      P_TNode
+      P_TPeer
     where Enabled = 1
+      and Dimmed = 0
+      and (select Online from P_TParams) > 0
       and ((select NdPubFilter from P_TParams) = 3
         or (Acceptor = 0 and (select NdPubFilter from P_TParams) = 2)
         or (Acceptor = 1 and (select NdPubFilter from P_TParams) = 1));
 /*-----------------------------------------------------------------------------------------------*/
+create view P_Peers as select * from P_TPeer; /* Admin view */
+/*-----------------------------------------------------------------------------------------------*/
 create view P_ReplDir as select distinct NodeRId, RepKind from P_TReplLog;
 create view P_ReplLog as select * from P_TReplLog;
 /*-----------------------------------------------------------------------------------------------*/
-grant execute on procedure P_SysSig to trigger P_TBI$TNode;
-grant execute on procedure P_SysSig to trigger P_TBU$TNode;
+grant execute on procedure P_SysSig to trigger P_TBI$TPeer;
+grant execute on procedure P_SysSig to trigger P_TBU$TPeer;
 
-grant execute on procedure P_IsRepl to trigger P_TBI$TNode;
-grant execute on procedure P_IsNdSid to trigger P_TBU$TNode;
+grant execute on procedure P_IsRepl to trigger P_TBI$TPeer;
+grant execute on procedure P_IsNdSid to trigger P_TBU$TPeer;
+
+grant all on P_TPeer to trigger P_TAIU$TPeer;
+grant execute on procedure P_IsNdSid to trigger P_TAIU$TPeer;
+grant execute on procedure P_BegNdSid to trigger P_TAIU$TPeer;
+grant execute on procedure P_EndNdSid to trigger P_TAIU$TPeer;
 
 grant all on P_TReplLog to procedure P_ReplMsg;
 grant select on P_TParams to procedure P_ReplMsg;
@@ -549,14 +587,16 @@ grant execute on procedure P_GetNodeHash to procedure P_CheckNode;
 grant all on P_TReplLog to procedure P_ClearReplLog;
 grant all on P_TNDidLog to procedure P_ClearReplLog;
 grant all on P_TMPidLog to procedure P_ClearReplLog;
-grant select on P_TNode to procedure P_ClearReplLog;
+grant select on P_TPeer to procedure P_ClearReplLog;
 grant select on P_TParams to procedure P_ClearReplLog;
 
-grant all on P_TNode to procedure P_ClearNodeList;
-grant select on P_TParams to procedure P_ClearNodeList;
-grant execute on procedure P_NodeRating to procedure P_ClearNodeList;
+grant all on P_TPeer to procedure P_ClearPeerList;
+grant select on P_TParams to procedure P_ClearPeerList;
+grant execute on procedure P_PeerRating to procedure P_ClearPeerList;
 
-grant all on P_TNode to procedure P_SetNodeData;
-grant execute on procedure ParamValue to procedure P_SetNodeData;
+grant all on P_TPeer to procedure P_SetPeerInfo;
+grant select on P_TParams to procedure P_SetPeerInfo;
+grant execute on procedure ParamValue to procedure P_SetPeerInfo;
+grant execute on procedure SectionBody to procedure P_SetPeerInfo;
 /*-----------------------------------------------------------------------------------------------*/
 

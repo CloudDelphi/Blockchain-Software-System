@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: nodelist.sql Version: 0.4.3.6                               */
+/* PeopleRelay: peerlog.sql Version: 0.4.3.6                                */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -17,73 +17,79 @@
 /* ======================================================================== */
 
 /*-----------------------------------------------------------------------------------------------*/
+/*
+Node List Replicator buffer. 
+*/
+create table P_TPeerLog(
+  ParId             TRid,
+  NodeId            TNodeId not null,
+  Alias             TNdAlias,
+  Status            TNdStatus,
+  Acceptor          TBoolean,
+  IP                TIPV6str not null,
+  APort             TPort default '3050',
+  APath             TPath not null,
+  ExtAcc            TUserName not null,
+  ExtPWD            TPWD not null,
+  EditTime          TTimeMark not null,
+  NodeSig           TSig,
+  PubKey            TKey,
+  primary key       (ParId,NodeId),
+  foreign key       (ParId) references P_TPeer(RecId)
+    on update       CASCADE
+    on delete       CASCADE);
+/*-----------------------------------------------------------------------------------------------*/
 set term ^ ;
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_NodeList(RepKind TRepKind,Acceptor TBoolean)
-returns
- (NRecId            TRef,
-  Accept            TBoolean,
-  NodeId            TNodeId,
-  SigHash           TIntHash,
-  IP                TIPV6str,
-  APort             TPort,
-  ExtAcc            TUserName,
-  ExtPWD            TPWD,
-  FullPath          TFullPath)
+create trigger P_TBI$TPeerLog for P_TPeerLog active before insert position 0
 as
+  declare flag TBoolean;
 begin
-  if ((RepKind <> 2
-      and (select Broadband from P_TParams) = 1)
-    or (RepKind = 3
-      and not exists (select 1 from P_TNode where Acceptor = 1)))
-  then
-    Acceptor = 0;
-
-  for select
-     RecId,
-     Acceptor,
-     NodeId,
-     Hash(LoadSig),
-     Ip,
-     APort,
-     ExtAcc,
-     ExtPWD,
-     FullPath
-    from
-      P_TNode
-    where Enabled = 1
-      and Status >= 0
-      and Dimmed = 0
-      and (:Acceptor = 0 or Acceptor = 1)
-    order by
-      (select Result from P_NodeRating(RecId,NodeId)) desc,rand()
-    into
-      :NRecId,
-      :Accept,
-      :NodeId,
-      :SigHash,
-      :IP,
-      :APort,
-      :ExtAcc,
-      :ExtPWD,
-      :FullPath
-  do
-    suspend;
+  new.ExtAcc = Upper(new.ExtAcc);
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_NodeCacheHit(Acceptor TBoolean,NodeId TNodeId)
-returns
-  (Result TBoolean)
+create trigger P_TBU$TPeerLog for P_TPeerLog active before update position 0
 as
 begin
-  if (exists (select 1 from P_NodeList(0,:Acceptor) where NodeId = :NodeId)) then Result = 1;
+  new.ExtAcc = Upper(new.ExtAcc);
 end^
 /*-----------------------------------------------------------------------------------------------*/
 set term ; ^
 /*-----------------------------------------------------------------------------------------------*/
-grant select on P_TNode to procedure P_NodeList;
-grant select on P_TParams to procedure P_NodeList;
-grant execute on procedure P_NodeRating to procedure P_NodeList;
-
-grant execute on procedure P_NodeList to procedure P_NodeCacheHit;
+create view P_PeerLog
+as
+  select
+    count(*) as Voting,
+    NodeId,
+    Alias,
+    Status,
+    Acceptor,
+    IP,
+    APort,
+    APath,
+    ExtAcc,
+    ExtPWD,
+    EditTime,
+    NodeSig,
+    PubKey
+  from
+    P_TPeerLog
+  where
+    NodeId <> (select NodeId from P_TParams)
+  group by
+    NodeId,
+    Alias,
+    Status,
+    Acceptor,
+    IP,
+    APort,
+    APath,
+    ExtAcc,
+    ExtPWD,
+    EditTime,
+    NodeSig,
+    PubKey;
 /*-----------------------------------------------------------------------------------------------*/
+
+/*-----------------------------------------------------------------------------------------------*/
+

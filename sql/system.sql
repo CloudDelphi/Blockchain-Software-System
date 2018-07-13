@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: system.sql Version: 0.4.1.8                                 */
+/* PeopleRelay: system.sql Version: 0.4.3.6                                 */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -311,17 +311,16 @@ as
   declare mnm TSysStr255;  
   declare stm TSysStr128;
 begin
-  stm = 'select rdb$procedure_name,rdb$procedure_id,Hash(rdb$procedure_blr) from rdb$procedures';
+  stm = 'select rdb$procedure_name,Hash(rdb$procedure_blr) from rdb$procedures';
   for execute statement stm
     on external A_DB as user A_USR password A_PWD
-    into :pnm,:pid,:h
+    into :pnm,:h
   do
     if (not exists (
       select 1
         from
           rdb$procedures
         where rdb$procedure_name = :pnm
-          and rdb$procedure_id = :pid
           and Hash(rdb$procedure_blr) = :h))
     then
       begin
@@ -382,7 +381,7 @@ select gen_id(rdb$trigger_name,0) from rdb$database
 select Result from SYS_MetaHash
 */
 
-create procedure SYS_MetaHash
+create procedure SYS_IdentHash
 returns
   (Result BigInt)
 as
@@ -415,6 +414,59 @@ begin
       rdb$return_argument,'-')
     from
       rdb$functions));
+
+  Result = Hash(h1 || '-' || h2 || '-' || h3);
+
+  suspend;
+end^
+/*-----------------------------------------------------------------------------------------------*/
+create procedure SYS_MetaHash
+returns
+  (Result BigInt)
+as
+  declare h1 BigInt;
+  declare h2 BigInt;
+  declare h3 BigInt;
+  declare s TString512; /* rdb$module_name length is 255 */
+begin
+  h1 = 0;
+  h2 = 0;
+  h3 = 0;
+  for select
+      Trim(rdb$procedure_name) || '-' || Hash(rdb$procedure_blr)
+    from
+      rdb$procedures
+    order by
+      rdb$procedure_name
+    into :s
+  do
+    h1 = Hash(h1 || '-' || s);
+
+  for select
+      Trim(rdb$trigger_name) || '-' ||
+      rdb$trigger_type || '-' ||
+      coalesce(rdb$trigger_inactive,'0') || '-' ||
+      Hash(rdb$trigger_blr)
+    from
+      rdb$triggers
+    order by
+      rdb$trigger_name
+    into :s
+  do
+    h2 = Hash(h2 || '-' || s);
+
+  for select
+      Trim(rdb$function_name) || '-' ||
+      rdb$module_name || '-' ||
+      rdb$entrypoint || '-' ||
+      rdb$return_argument
+    from
+      rdb$functions
+    order by
+      rdb$function_name
+    into :s
+  do
+    h3 = Hash(h3 || '-' || s);
 
   Result = Hash(h1 || '-' || h2 || '-' || h3);
 
@@ -621,6 +673,7 @@ begin
       execute procedure SYS_IpStrToBin(IP2) returning_values i2;
       if (Substring(i1 from 1 for MLen) <> Substring(i2 from 1 for MLen)) then Result = 1;
     end
+  suspend;  
 end^
 /*-----------------------------------------------------------------------------------------------*/
 set term ; ^

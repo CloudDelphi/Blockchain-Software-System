@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: repair.sql Version: 0.4.1.8                                 */
+/* PeopleRelay: repair.sql Version: 0.4.3.6                                 */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -86,16 +86,16 @@ returns
   (Size TCount,
    Delta TCount)
 as
-  declare Id TCount;
   declare BlockNo TRef;
   declare rslt TCheck;
+  declare Voting TCount;
   declare TM0 TTimeMark;
   declare flag TBoolean;
-  declare VoteLim TCount;
+  declare Quorum TCount;
   declare TMSlice TInt32;
   declare Acceptor TBoolean;
-  declare Checksum TIntHash;
-  declare SelfHash TChHash;
+  declare Chsum TIntHash;
+  declare BHash TChHash;
   declare NodeId TNodeId;
   declare PeerIP TIPV6str;
   declare PeerPort TPort;
@@ -109,7 +109,7 @@ begin
   execute procedure P_ChainSize returning_values :Size;
   if (Size > 0) then
   begin
-    execute procedure P_VoteLim(6,Acceptor) returning_values VoteLim;
+    execute procedure P_GetQuorum(6,Acceptor,-1) returning_values Quorum;
 
     for select
         NodeId,
@@ -119,7 +119,7 @@ begin
         ExtPWD,
         FullPath
       from
-        P_NodeList(6,:Acceptor)
+        P_PeerList(6,:Acceptor)
       into
         :NodeId,
         :PeerIp,
@@ -134,8 +134,8 @@ begin
           flag = 0;
           for select
               BlockNo,
-              Checksum,
-              SelfHash
+              Chsum,
+              BHash
             from
               P_TChain
             where
@@ -144,11 +144,11 @@ begin
               BlockNo desc
             into
               :BlockNo,
-              :Checksum,
-              :SelfHash
+              :Chsum,
+              :BHash
           do
             begin
-              execute procedure P_DoCheckBlock(BlockNo,Checksum,SelfHash,DB,Usr,PWD,NodeId) returning_values rslt;
+              execute procedure P_DoCheckBlock(BlockNo,Chsum,BHash,DB,Usr,PWD,NodeId) returning_values rslt;
               if (rslt < 0)   /* Error */
               then
                 begin
@@ -159,8 +159,8 @@ begin
                 if (rslt in (1,2)) then /* 2 - Peer Chain too short, we consider there is no discrepancy. */
                 begin
                   flag = 1;
-                  Id = Id + 1;
-                  insert into P_TChainTest(Id,Val) values(:Id,(:Size - :BlockNo));
+                  Voting = Voting + 1;
+                  insert into P_TChainTest(Id,Val) values(:Voting,(:Size - :BlockNo));
                   Leave;
                 end
 
@@ -173,17 +173,17 @@ begin
             end
           if (flag = 0) then
           begin
-            Id = Id + 1;
-            insert into P_TChainTest(Id,Val) values(:Id,:Size); /* No one Block found at all - full discrepancy */
+            Voting = Voting + 1;
+            insert into P_TChainTest(Id,Val) values(:Voting,:Size); /* No one Block found at all - full discrepancy */
           end
 
-          if (Id >= VoteLim) then Leave;
+          if (Voting >= Quorum) then Leave;
 
           if(TMSlice > 0
             and datediff(minute,TM0,cast('Now' as TimeStamp)) > TMSlice)
           then
             begin
-              execute procedure P_LogErr(-302,Id,VoteLim,null,'P_Discrepancy',NodeId,'Long duration',null);
+              execute procedure P_LogErr(-302,Voting,Quorum,null,'P_Discrepancy',NodeId,'Long duration',null);
               Delta = -2;
               exit;
             end
@@ -199,13 +199,13 @@ begin
           and datediff(minute,TM0,cast('Now' as TimeStamp)) > TMSlice)
         then
           begin
-            execute procedure P_LogErr(-304,Id,VoteLim,null,'P_Discrepancy',NodeId,'Long duration',null);
+            execute procedure P_LogErr(-304,Voting,Quorum,null,'P_Discrepancy',NodeId,'Long duration',null);
             Delta = -4;
             exit;
           end
       end
 
-    if (Id > 0 and Id >= VoteLim) then
+    if (Voting > 0 and Voting >= Quorum) then
       execute procedure P_DiscrMedian returning_values Delta;
 
   end
@@ -279,9 +279,9 @@ grant select on P_TChain to procedure P_Discrepancy;
 grant select on P_TParams to procedure P_Discrepancy;
 grant all on P_TChainTest to procedure P_Discrepancy;
 grant execute on procedure P_LogErr to procedure P_Discrepancy;
-grant execute on procedure P_VoteLim to procedure P_Discrepancy;
 grant execute on procedure P_IsOnline to procedure P_Discrepancy;
-grant execute on procedure P_NodeList to procedure P_Discrepancy;
+grant execute on procedure P_PeerList to procedure P_Discrepancy;
+grant execute on procedure P_GetQuorum to procedure P_Discrepancy;
 grant execute on procedure P_ChainSize to procedure P_Discrepancy;
 grant execute on procedure P_DiscrMedian to procedure P_Discrepancy;
 grant execute on procedure P_DoCheckBlock to procedure P_Discrepancy;

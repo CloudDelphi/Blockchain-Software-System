@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: stats.sql Version: 0.4.1.8                                  */
+/* PeopleRelay: stats.sql Version: 0.4.3.6                                  */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -36,13 +36,13 @@ begin
   cDate = cast(tm as DATE);
   cHour = extract(HOUR from tm);
 
-  Param = 'Chain: Size/Checksum';
-  select first 1 BlockNo,Checksum from P_TChain order by BlockNo desc into :Val_1,:Val_2;
+  Param = 'Chain: Size/Chsum';
+  select first 1 BlockNo,Chsum from P_TChain order by BlockNo desc into :Val_1,:Val_2;
   suspend;
 
   Param = 'Node List: Size/Acceptors';
-  select count(*) from P_TNode into :Val_1;
-  select count(*) from P_TNode where Acceptor = 1 into :Val_2;
+  select count(*) from P_TPeer into :Val_1;
+  select count(*) from P_TPeer where Acceptor = 1 into :Val_2;
   suspend;
 
   Param = 'Chain Buffers: BackLog/MeltingPot';
@@ -50,9 +50,9 @@ begin
   select count(*) from P_TMeltingPot into :Val_2;
   suspend;
 
-  Param = 'Node Buffers: Incoming/OutGoing';
+  Param = 'Node Buffers: Incoming';
   select count(*) from P_TRegInq into :Val_1;
-  select count(*) from P_TRegAim into :Val_2;
+  Val_2 = 0;
   suspend;
 
   Param = 'Dehorn: Today/Current hour';
@@ -104,7 +104,6 @@ begin
   suspend;
 
 end^
-
 /*-----------------------------------------------------------------------------------------------*/
 /*
 select * from PS_Info;
@@ -113,8 +112,8 @@ create or alter procedure PS_Info
 returns
   (Sz_Dis_Chs TSysStr32,
    BL_MP_Sz TSysStr16,
-   Nd_Log_Sz TSysStr16,   
-   Inq_Aim_Sz TSysStr16,
+   Peers TSysStr12,
+   Inq_Alt TSysStr12,
    Err_Deh TSysStr16,
    Accepts TSysStr16)
 as
@@ -129,26 +128,24 @@ begin
   cDate = cast(tm as DATE);
 
   execute procedure P_Discrepancy returning_values n_1,n_2;
-  select first 1 BlockNo,Checksum from P_TChain order by BlockNo desc into :BlockNo,:n_1;
+  select first 1 BlockNo,Chsum from P_TChain order by BlockNo desc into :BlockNo,:n_1;
   Sz_Dis_Chs = BlockNo || '(' || n_2 || ')' || n_1;
 
   select count(*) from P_TBacklog into :n_1;
   select count(*) from P_TMeltingPot into :n_2;
   BL_MP_Sz = n_1 || '/' || n_2;
 
-  select count(*) from P_TRegInq into :n_1;
-  select count(*) from P_TRegAim into :n_2;
-  Inq_Aim_Sz = n_1 || '/' || n_2;
+  select count(*) from P_TRegInq into :Inq_Alt;
+  Inq_Alt = Inq_Alt || '/' || IIF((select AlteredAt from P_TParams) is null,0,1);
 
   select count(*) from P_TLog where FDate = :cDate and IsError = 1 into :n_1;
   select count(*) from P_TLog where FDate = :cDate and MsgId = 302 into :n_2;
   Err_Deh = n_1 || '/' || n_2;
 
-  select count(*) from P_TNode into :n_1;
-  select count(*) from P_TNodeLog into :n_2;
-  Nd_Log_Sz = n_1 || '/' || n_2;
+  select count(*) from P_TPeer into :n_1;
+  Peers = n_1;
 
-  select count(*) from P_TNode where Acceptor = 1 into :n_2;
+  select count(*) from P_TPeer where Acceptor = 1 into :n_2;
   if ((select Acceptor from P_TParams) = 1)
   then
     Accepts = 'A';
@@ -159,7 +156,7 @@ begin
   suspend;
 end^
 /*-----------------------------------------------------------------------------------------------*/
-alter procedure P_NodeRating(RecId TRid, NodeId TNodeId)
+alter procedure P_PeerRating(RecId TRid, NodeId TNodeId)
 returns
   (Result TRating)
 as
@@ -180,20 +177,18 @@ end^
 set term ; ^
 /*-----------------------------------------------------------------------------------------------*/
 grant select on P_TLog to procedure PS_Today;
-grant select on P_TNode to procedure PS_Today;
+grant select on P_TPeer to procedure PS_Today;
 grant select on P_TDBLog to procedure PS_Today;
 grant select on P_TChain to procedure PS_Today;
 
 grant select on P_TLog to procedure PS_Info;
-grant select on P_TNode to procedure PS_Info;
+grant select on P_TPeer to procedure PS_Info;
 grant select on P_TChain to procedure PS_Info;
 grant select on P_TRegInq to procedure PS_Info;
-grant select on P_TRegAim to procedure PS_Info;
 grant select on P_TParams to procedure PS_Info;
-grant select on P_TNodeLog to procedure PS_Info;
 grant select on P_TBacklog to procedure PS_Info;
 grant select on P_TMeltingPot to procedure PS_Info;
 
-grant select on P_TLog to procedure P_NodeRating;
-grant select on P_TParams to procedure P_NodeRating;
+grant select on P_TLog to procedure P_PeerRating;
+grant select on P_TParams to procedure P_PeerRating;
 /*-----------------------------------------------------------------------------------------------*/

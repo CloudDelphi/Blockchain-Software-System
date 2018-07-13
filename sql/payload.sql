@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: payload.sql Version: 0.4.1.8                                */
+/* PeopleRelay: payload.sql Version: 0.4.3.6                                */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -99,33 +99,33 @@ end^
 set term ; ^
 /*-----------------------------------------------------------------------------------------------*/
 insert into P$TSysNames(TableName,Name) values('P_TChain','BlockNo');
-insert into P$TSysNames(TableName,Name) values('P_TChain','SelfHash');
+insert into P$TSysNames(TableName,Name) values('P_TChain','BHash');
 insert into P$TSysNames(TableName,Name) values('P_TChain','BlockId');
 insert into P$TSysNames(TableName,Name) values('P_TChain','ParBlkNo');
-insert into P$TSysNames(TableName,Name) values('P_TChain','PrntHash');
-insert into P$TSysNames(TableName,Name) values('P_TChain','Checksum');
+insert into P$TSysNames(TableName,Name) values('P_TChain','ParBHash');
+insert into P$TSysNames(TableName,Name) values('P_TChain','Chsum');
 insert into P$TSysNames(TableName,Name) values('P_TChain','ParChsum');
-insert into P$TSysNames(TableName,Name) values('P_TChain','TimeMark');
+insert into P$TSysNames(TableName,Name) values('P_TChain','BTime');
 insert into P$TSysNames(TableName,Name) values('P_TChain','Address');
 insert into P$TSysNames(TableName,Name) values('P_TChain','SenderId');
 insert into P$TSysNames(TableName,Name) values('P_TChain','Nonce');
 insert into P$TSysNames(TableName,Name) values('P_TChain','PubKey');
-insert into P$TSysNames(TableName,Name) values('P_TChain','LoadSig');
-insert into P$TSysNames(TableName,Name) values('P_TChain','LocalSig');
-insert into P$TSysNames(TableName,Name) values('P_TChain','CreatedAt');
+insert into P$TSysNames(TableName,Name) values('P_TChain','BSig');
+insert into P$TSysNames(TableName,Name) values('P_TChain','TmpSig');
+insert into P$TSysNames(TableName,Name) values('P_TChain','RecTime');
 commit work;
 
 insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','RecId');
-insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','SelfHash');
+insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','BHash');
 insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','BlockId');
 insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','ParBlkNo');
-insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','PrntHash');
+insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','ParBHash');
 insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','Address');
 insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','SenderId');
 insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','Nonce');
 insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','PubKey');
-insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','LoadSig');
-insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','LocalSig');
+insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','BSig');
+insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','TmpSig');
 insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','State');
 insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','RT');
 insert into P$TSysNames(TableName,Name) values('P_TMeltingPot','Own');
@@ -134,17 +134,17 @@ commit work;
 
 insert into P$TSysNames(TableName,Name) values('P_TBacklog','RecId');
 insert into P$TSysNames(TableName,Name) values('P_TBacklog','BlockNo');
-insert into P$TSysNames(TableName,Name) values('P_TBacklog','SelfHash');
+insert into P$TSysNames(TableName,Name) values('P_TBacklog','BHash');
 insert into P$TSysNames(TableName,Name) values('P_TBacklog','BlockId');
 insert into P$TSysNames(TableName,Name) values('P_TBacklog','ParBlkNo');
-insert into P$TSysNames(TableName,Name) values('P_TBacklog','PrntHash');
-insert into P$TSysNames(TableName,Name) values('P_TBacklog','Checksum');
+insert into P$TSysNames(TableName,Name) values('P_TBacklog','ParBHash');
+insert into P$TSysNames(TableName,Name) values('P_TBacklog','Chsum');
 insert into P$TSysNames(TableName,Name) values('P_TBacklog','ParChsum');
 insert into P$TSysNames(TableName,Name) values('P_TBacklog','Address');
 insert into P$TSysNames(TableName,Name) values('P_TBacklog','SenderId');
 insert into P$TSysNames(TableName,Name) values('P_TBacklog','Nonce');
 insert into P$TSysNames(TableName,Name) values('P_TBacklog','PubKey');
-insert into P$TSysNames(TableName,Name) values('P_TBacklog','LoadSig');
+insert into P$TSysNames(TableName,Name) values('P_TBacklog','BSig');
 insert into P$TSysNames(TableName,Name) values('P_TBacklog','RT');
 commit work;
 /*-----------------------------------------------------------------------------------------------*/
@@ -154,7 +154,7 @@ create table P_TFields(
   TableBuf1         TSysStr31 default 'P_TMeltingPot' not null,
   TableBuf2         TSysStr31 default 'P_TBacklog' not null,
   DataType          TSysStr64 not null,
-  DefVal            TString64,
+  DefVal            TString63,
   Constr            TSysStr127,
   CharSet           TSysStr64,  
   Encrypt           TBoolean,
@@ -359,9 +359,9 @@ create procedure P_CreateField(
   TableName TSysStr31,
   FieldName TSysStr31,
   DataType TSysStr64,
-  DefVal TString64,
+  DefVal TString63,
   Constr TSysStr128,
-  CharSet TString64)
+  CharSet TString63)
 as
   declare f TBoolean;
   declare dv TString128;
@@ -490,13 +490,13 @@ as
 begin
   delete from P$TFldFlt;
   insert into P$TFldFlt(Name) values('RecId');
-  insert into P$TFldFlt(Name) values('TimeMark');
-  insert into P$TFldFlt(Name) values('CreatedAt');
+  insert into P$TFldFlt(Name) values('BTime');
+  insert into P$TFldFlt(Name) values('RecTime');
   insert into P$TFldFlt(Name) values('State');
   insert into P$TFldFlt(Name) values('RT');
   insert into P$TFldFlt(Name) values('Own');
   insert into P$TFldFlt(Name) values('Sid');
-  insert into P$TFldFlt(Name) values('LocalSig');
+  insert into P$TFldFlt(Name) values('TmpSig');
 end^
 /*-----------------------------------------------------------------------------------------------*/
 create or alter procedure P_FieldHash
@@ -509,15 +509,15 @@ begin
   insert into P$TFldFlt(Name) values('Nonce');
   insert into P$TFldFlt(Name) values('PubKey');
   insert into P$TFldFlt(Name) values('BlockNo');
-  insert into P$TFldFlt(Name) values('LoadSig');
-  insert into P$TFldFlt(Name) values('LocalSig');
-  insert into P$TFldFlt(Name) values('SelfHash');
-  insert into P$TFldFlt(Name) values('TimeMark');
+  insert into P$TFldFlt(Name) values('BSig');
+  insert into P$TFldFlt(Name) values('TmpSig');
+  insert into P$TFldFlt(Name) values('BHash');
+  insert into P$TFldFlt(Name) values('BTime');
   insert into P$TFldFlt(Name) values('ParBlkNo');
-  insert into P$TFldFlt(Name) values('PrntHash');
-  insert into P$TFldFlt(Name) values('Checksum');
+  insert into P$TFldFlt(Name) values('ParBHash');
+  insert into P$TFldFlt(Name) values('Chsum');
   insert into P$TFldFlt(Name) values('ParChsum');
-  insert into P$TFldFlt(Name) values('CreatedAt');
+  insert into P$TFldFlt(Name) values('RecTime');
 
   select List(Result, ',''0'') || ''-'' || ' || ASCII_CHAR(10) || '    coalesce(')
     from P_EnumFields('P_TChain') into :Result;
@@ -622,7 +622,7 @@ begin
     || '    exit;' || ASCII_CHAR(10)
     || '  end' || ASCII_CHAR(10)
 
-    || '  if ((select Result from P_IsHash(:SelfHash)) = 0) then' || ASCII_CHAR(10)
+    || '  if ((select Result from P_IsHash(:BHash)) = 0) then' || ASCII_CHAR(10)
     || '  begin' || ASCII_CHAR(10)
     || '    Result = -5;' || ASCII_CHAR(10)    
     || '    execute procedure P_LogSndErr(-1005,0,0,null,''P_AddBlock'',SenderId,''Block PoW Error'');' || ASCII_CHAR(10)
@@ -633,7 +633,7 @@ begin
     || '  begin' || ASCII_CHAR(10)
     || '    A_Data = ' || FieldHash ||';' || ASCII_CHAR(10)
     || '    execute procedure P_CalcHash(A_Data) returning_values A_Hash;' || ASCII_CHAR(10)
-    || '    if (A_Hash <> SelfHash) then' || ASCII_CHAR(10)
+    || '    if (A_Hash <> BHash) then' || ASCII_CHAR(10)
     || '    begin' || ASCII_CHAR(10)
     || '      Result = -6;' || ASCII_CHAR(10)
     || '      execute procedure P_LogSndErr(-1006,0,0,null,''P_AddBlock'',SenderId,''Block Hash Error'');' || ASCII_CHAR(10)
@@ -642,7 +642,7 @@ begin
     || '  end' || ASCII_CHAR(10)
     || '  if (A_ChSig = 1) then' || ASCII_CHAR(10)
     || '  begin' || ASCII_CHAR(10)
-    || '    execute procedure P_IsBlockSig(SelfHash,LoadSig,PubKey) returning_values A_Test;' || ASCII_CHAR(10)
+    || '    execute procedure P_IsBlockSig(BHash,BSig,PubKey) returning_values A_Test;' || ASCII_CHAR(10)
     || '    if (A_Test = 0) then' || ASCII_CHAR(10)
     || '    begin' || ASCII_CHAR(10)
     || '      Result = -7;' || ASCII_CHAR(10)
@@ -708,7 +708,7 @@ begin
     || '  declare A_Skip TBoolean;' || ASCII_CHAR(10)
     || '  declare A_Acc TBoolean;' || ASCII_CHAR(10)
     || '  declare A_ChHsh TBoolean;' || ASCII_CHAR(10)
-    || '  declare A_ChLcs TBoolean;' || ASCII_CHAR(10)
+    || '  declare A_ChTmS TBoolean;' || ASCII_CHAR(10)
     || '  declare A_ChSig TBoolean;' || ASCII_CHAR(10)
     || '  declare A_TB TBoolean;' || ASCII_CHAR(10)
     || '  declare A_NdId TNodeId;' || ASCII_CHAR(10)
@@ -722,11 +722,11 @@ begin
     || '  declare A_Data TMemo;' || ASCII_CHAR(10)
     || 'begin' || ASCII_CHAR(10)
     || '  Rec_Cnt = 0;' || ASCII_CHAR(10)
-    || '  select NodeId,Acceptor,PubKey from P_TNode where RecId = :NodeRId into :A_NdId,:A_Acc,:PeerKey;' || ASCII_CHAR(10)
-    || '  select CHTokenBus,ChckHshCH,ChckLcsCH,ChckSigCH from P_TParams into :A_TB,:A_ChHsh,:A_ChLcs,:A_ChSig;' || ASCII_CHAR(10)
+    || '  select NodeId,Acceptor,PubKey from P_TPeer where RecId = :NodeRId into :A_NdId,:A_Acc,:PeerKey;' || ASCII_CHAR(10)
+    || '  select CHTokenBus,ChckHshCH,ChckTmSCH,ChckSigCH from P_TParams into :A_TB,:A_ChHsh,:A_ChTmS,:A_ChSig;' || ASCII_CHAR(10)
     || '  select max(BlockNo) from P_TChain into :A_Rid;' || ASCII_CHAR(10)
     || '  stm = ''select ' || FieldList || ' from P_Chain where BlockNo > ?'';' || ASCII_CHAR(10)
-    || '  stm2 = ''select NodeId from P_TSMVoter where SelfHash = ?'';' || ASCII_CHAR(10)
+    || '  stm2 = ''select NodeId from P_TSMVoter where BHash = ?'';' || ASCII_CHAR(10)
 
     || '  for execute statement (stm) (:A_Rid)' || ASCII_CHAR(10)
     || '    on external A_DB as user A_USR password A_PWD' || ASCII_CHAR(10)
@@ -738,17 +738,17 @@ begin
   FieldArgs = Replace(FieldArgs,'    ','          ');
   Script = Script
 
-    || '    if (A_ChLcs = 1) then' || ASCII_CHAR(10)
+    || '    if (A_ChTmS = 1) then' || ASCII_CHAR(10)
     || '    begin' || ASCII_CHAR(10)
-    || '      execute procedure P_IsSysSig(SelfHash,LocalSig,PeerKey) returning_values A_Test;' || ASCII_CHAR(10)
+    || '      execute procedure P_IsSysSig(BHash,TmpSig,PeerKey) returning_values A_Test;' || ASCII_CHAR(10)
     || '      if (A_Test = 0) then' || ASCII_CHAR(10)
     || '      begin' || ASCII_CHAR(10)
     || '        A_Skip = 1;' || ASCII_CHAR(10)
-    || '        execute procedure P_BadLcs(NodeRId,A_NdId,''PG_Chain'');' || ASCII_CHAR(10)
+    || '        execute procedure P_BadTmS(NodeRId,A_NdId,''PG_Chain'');' || ASCII_CHAR(10)
     || '      end' || ASCII_CHAR(10)
     || '    end' || ASCII_CHAR(10)
 
-    || '    if (A_Skip = 0 and (select Result from P_IsHash(:SelfHash)) = 0) then' || ASCII_CHAR(10)
+    || '    if (A_Skip = 0 and (select Result from P_IsHash(:BHash)) = 0) then' || ASCII_CHAR(10)
     || '    begin' || ASCII_CHAR(10)
     || '      A_Skip = 1;' || ASCII_CHAR(10)
     || '      execute procedure P_BadHash(NodeRId,A_NdId,''PG_Chain'');' || ASCII_CHAR(10)
@@ -758,7 +758,7 @@ begin
     || '    begin' || ASCII_CHAR(10)
     || '      A_Data = ' || FieldHash ||';' || ASCII_CHAR(10)
     || '      execute procedure P_CalcHash(A_Data) returning_values A_Hash;' || ASCII_CHAR(10)
-    || '      if (A_Hash <> SelfHash) then' || ASCII_CHAR(10)
+    || '      if (A_Hash <> BHash) then' || ASCII_CHAR(10)
     || '      begin' || ASCII_CHAR(10)
     || '        A_Skip = 1;' || ASCII_CHAR(10)
     || '        execute procedure P_BadHash(NodeRId,A_NdId,''PG_Chain'');' || ASCII_CHAR(10)
@@ -768,7 +768,7 @@ begin
     || '    begin' || ASCII_CHAR(10)
     || '      if (A_ChSig = 1) then' || ASCII_CHAR(10)
     || '      begin' || ASCII_CHAR(10)
-    || '        execute procedure P_IsBlockSig(SelfHash,LoadSig,PubKey) returning_values A_Test;' || ASCII_CHAR(10)
+    || '        execute procedure P_IsBlockSig(BHash,BSig,PubKey) returning_values A_Test;' || ASCII_CHAR(10)
     || '        if (A_Test = 0) then' || ASCII_CHAR(10)
     || '        begin' || ASCII_CHAR(10)
     || '          A_Skip = 1;' || ASCII_CHAR(10)
@@ -779,7 +779,7 @@ begin
     || '      begin' || ASCII_CHAR(10)
     || '        A_Tmp = null;' || ASCII_CHAR(10)
     || '        select RecId from P_TBacklog' || ASCII_CHAR(10)
-    || '          where BlockNo =:BlockNo and Checksum = :Checksum and SelfHash = :SelfHash' || ASCII_CHAR(10)
+    || '          where BlockNo =:BlockNo and Chsum = :Chsum and BHash = :BHash' || ASCII_CHAR(10)
     || '          into :A_Tmp;' || ASCII_CHAR(10)
 
     || '        if (A_Tmp is null) then' || ASCII_CHAR(10)
@@ -801,8 +801,8 @@ begin
 
     || '        then' || ASCII_CHAR(10)
     || '          begin' || ASCII_CHAR(10)
-    || '            insert into P_TSMVoter(ParId,BlockNo,SelfHash,NodeId,Acceptor)' || ASCII_CHAR(10)
-    || '              values(:A_Tmp,:BlockNo,:SelfHash,:A_NdId,:A_Acc);' || ASCII_CHAR(10)
+    || '            insert into P_TSMVoter(ParId,BlockNo,BHash,NodeId,Acceptor)' || ASCII_CHAR(10)
+    || '              values(:A_Tmp,:BlockNo,:BHash,:A_NdId,:A_Acc);' || ASCII_CHAR(10)
     || '            when any do' || ASCII_CHAR(10)
     || '            begin' || ASCII_CHAR(10)
     || '              execute procedure P_LogErr(-162,sqlcode,gdscode,sqlstate,''PG_Chain'',A_NdId,''P_TSMVoter'',null);' || ASCII_CHAR(10)
@@ -810,16 +810,16 @@ begin
     || '            end' || ASCII_CHAR(10)
     || '          end' || ASCII_CHAR(10)
     || '        if (A_TB = 1) then' || ASCII_CHAR(10)
-    || '          for execute statement (stm2) (:SelfHash)' || ASCII_CHAR(10)
+    || '          for execute statement (stm2) (:BHash)' || ASCII_CHAR(10)
     || '            on external A_DB as user A_USR password A_PWD' || ASCII_CHAR(10)
     || '            into :A_PNId' || ASCII_CHAR(10)
     || '          do' || ASCII_CHAR(10)
     || '            if (not exists (select 1 from P_TSMVoter' || ASCII_CHAR(10)
-    || '              where SelfHash = :SelfHash and NodeId = :A_PNId))' || ASCII_CHAR(10)
+    || '              where BHash = :BHash and NodeId = :A_PNId))' || ASCII_CHAR(10)
     || '            then' || ASCII_CHAR(10)
     || '              begin' || ASCII_CHAR(10)
-    || '                insert into P_TSMVoter(ParId,BlockNo,SelfHash,NodeId,Acceptor)' || ASCII_CHAR(10)
-    || '                  values(:A_Tmp,:BlockNo,:SelfHash,:A_PNId,:A_Acc);' || ASCII_CHAR(10)
+    || '                insert into P_TSMVoter(ParId,BlockNo,BHash,NodeId,Acceptor)' || ASCII_CHAR(10)
+    || '                  values(:A_Tmp,:BlockNo,:BHash,:A_PNId,:A_Acc);' || ASCII_CHAR(10)
     || '                when any do' || ASCII_CHAR(10)
     || '                begin' || ASCII_CHAR(10)
     || '                  execute procedure P_LogErr(-163,sqlcode,gdscode,sqlstate,''PG_Chain'',A_NdId,''P_TSMVoter'',null);' || ASCII_CHAR(10)
@@ -862,13 +862,13 @@ begin
     || '  declare A_QT TCount;' || ASCII_CHAR(10)
     || 'begin' || ASCII_CHAR(10)
     || '  Rec_Cnt = 0;' || ASCII_CHAR(10)
-    || '  execute procedure P_QuorumAcc(1) returning_values A_QA;' || ASCII_CHAR(10)
-    || '  execute procedure P_QuorumTot(1) returning_values A_QT;' || ASCII_CHAR(10)
-    || '  select first 1 BlockNo,Checksum,SelfHash from P_TChain' || ASCII_CHAR(10)
+    || '  execute procedure P_AssentAcc(1) returning_values A_QA;' || ASCII_CHAR(10)
+    || '  execute procedure P_AssentTot(1) returning_values A_QT;' || ASCII_CHAR(10)
+    || '  select first 1 BlockNo,Chsum,BHash from P_TChain' || ASCII_CHAR(10)
     || '    order by BlockNo desc into :A_Rid,:A_ChSm,:A_Hash;' || ASCII_CHAR(10)
 
     || '  if (not exists (select 1 from P_TBacklog' || ASCII_CHAR(10)
-    || '        where ParBlkNo = :A_Rid and ParChsum = :A_ChSm and PrntHash = :A_Hash)' || ASCII_CHAR(10)
+    || '        where ParBlkNo = :A_Rid and ParChsum = :A_ChSm and ParBHash = :A_Hash)' || ASCII_CHAR(10)
     || '    and exists (select 1 from P_TBacklog where ParBlkNo = :A_Rid)) then' || ASCII_CHAR(10)
     || '  begin' || ASCII_CHAR(10)
     || '    execute procedure P_Dehorn(A_Rid,1);' || ASCII_CHAR(10)
@@ -883,10 +883,10 @@ begin
     || '      from P_BLV' || ASCII_CHAR(10)
     || '      where ParBlkNo = :A_Rid' || ASCII_CHAR(10)
     || '        and ParChsum = :A_ChSm' || ASCII_CHAR(10)
-    || '        and PrntHash = :A_Hash' || ASCII_CHAR(10)
+    || '        and ParBHash = :A_Hash' || ASCII_CHAR(10)
     || '        and (:A_Acc = 1 or VtTot >= :A_QT or VtAcc >= :A_QA)' || ASCII_CHAR(10)
-    || '      order by BlockNo,VtTot desc,VtAcc desc,VtRec desc,CheckSum,SelfHash' || ASCII_CHAR(10)
-    || '      returning BlockNo,Checksum,SelfHash into :A_Tmp,:A_ChSm,:A_Hash;' || ASCII_CHAR(10)
+    || '      order by BlockNo,VtTot desc,VtAcc desc,VtRec desc,Chsum,BHash' || ASCII_CHAR(10)
+    || '      returning BlockNo,Chsum,BHash into :A_Tmp,:A_ChSm,:A_Hash;' || ASCII_CHAR(10)
     || '    A_Rid = A_Tmp;' || ASCII_CHAR(10)
     || '    if (A_Rid is not null) then Rec_Cnt = Rec_Cnt + 1;' || ASCII_CHAR(10)
     || '  end' || ASCII_CHAR(10)
@@ -929,7 +929,7 @@ begin
     || '  declare A_RT TCount;' || ASCII_CHAR(10)
     || '  declare A_Tmp TRef;' || ASCII_CHAR(10)
     || '  declare A_ChHsh TBoolean;' || ASCII_CHAR(10)
-    || '  declare A_ChLcs TBoolean;' || ASCII_CHAR(10)
+    || '  declare A_ChTmS TBoolean;' || ASCII_CHAR(10)
     || '  declare A_ChSig TBoolean;' || ASCII_CHAR(10)
     || '  declare A_Skip TBoolean;' || ASCII_CHAR(10)
     || '  declare A_Tmp2 TSysStr32;' || ASCII_CHAR(10)
@@ -944,14 +944,14 @@ begin
     || '  Rec_Cnt = 0;' || ASCII_CHAR(10)
     || '  A_Tmp2 = ''PG_MeltingPot'';' || ASCII_CHAR(10)
     || '  stm = ''select ' || FieldList || ' from P_MeltingPot where Sid > ? order by Sid'';' || ASCII_CHAR(10)
-    || '  stm2 = ''select NodeId from P_TMPVoter where SelfHash = ?'';' || ASCII_CHAR(10)
-    || '  select NodeId,PubKey from P_TNode where RecId = :NodeRId into :A_NdId,:PeerKey;' || ASCII_CHAR(10)
+    || '  stm2 = ''select NodeId from P_TMPVoter where BHash = ?'';' || ASCII_CHAR(10)
+    || '  select NodeId,PubKey from P_TPeer where RecId = :NodeRId into :A_NdId,:PeerKey;' || ASCII_CHAR(10)
     || '  select first 1 MPId from P_TMPidLog' || ASCII_CHAR(10)
     || '    where ParId = :NodeRId order by RecId desc into :A_MPId;' || ASCII_CHAR(10)
     || '  if (A_MPId is null) then A_MPId = 0;' || ASCII_CHAR(10)
     || '  A_Tmp3 = A_MPId;' || ASCII_CHAR(10)
-    || '  select (:A_MPId - MPOverlap),MPTokenBus,ChckHshMP,ChckLcsMP,ChckSigMP,(Gen_Id(P_G$RTT,0) - LacunaSpan)' || ASCII_CHAR(10)
-    || '    from P_TParams into :A_MPId,:A_TB,:A_ChHsh,:A_ChLcs,:A_ChSig,:A_RT;' || ASCII_CHAR(10)
+    || '  select (:A_MPId - MPOverlap),MPTokenBus,ChckHshMP,ChckTmSMP,ChckSigMP,(Gen_Id(P_G$RTT,0) - LacunaSpan)' || ASCII_CHAR(10)
+    || '    from P_TParams into :A_MPId,:A_TB,:A_ChHsh,:A_ChTmS,:A_ChSig,:A_RT;' || ASCII_CHAR(10)
     || '  if (A_MPId < 0) then A_MPId = 0;' || ASCII_CHAR(10)
     || '  A_Tmp = A_MPId;' || ASCII_CHAR(10)
     || '  execute procedure P_BegReplEx;' || ASCII_CHAR(10)
@@ -979,24 +979,24 @@ begin
     || '          execute procedure P_LogMsg(350,Sid,A_Tmp,0,A_Tmp2,null,null,null);' || ASCII_CHAR(10)
     || '        end' || ASCII_CHAR(10)
     || '    Rec_Cnt = Rec_Cnt + 1;' || ASCII_CHAR(10)
-    || '    select RecId from P_TMeltingPot where SelfHash = :SelfHash into :A_Rid;' || ASCII_CHAR(10)
+    || '    select RecId from P_TMeltingPot where BHash = :BHash into :A_Rid;' || ASCII_CHAR(10)
     || '    if (A_Rid is null) then' || ASCII_CHAR(10)
     || '    begin' || ASCII_CHAR(10)
 
-    || '      if (A_ChLcs = 1) then' || ASCII_CHAR(10)
+    || '      if (A_ChTmS = 1) then' || ASCII_CHAR(10)
     || '      begin' || ASCII_CHAR(10)
-    || '        execute procedure P_IsSysSig(SelfHash,LocalSig,PeerKey) returning_values A_Test;' || ASCII_CHAR(10)
+    || '        execute procedure P_IsSysSig(BHash,TmpSig,PeerKey) returning_values A_Test;' || ASCII_CHAR(10)
     || '        if (A_Test = 0) then' || ASCII_CHAR(10)
     || '        begin' || ASCII_CHAR(10)
     || '          A_Skip = 1;' || ASCII_CHAR(10)
-    || '          execute procedure P_BadLcs(NodeRId,A_NdId,A_Tmp2);' || ASCII_CHAR(10)
+    || '          execute procedure P_BadTmS(NodeRId,A_NdId,A_Tmp2);' || ASCII_CHAR(10)
     || '        end' || ASCII_CHAR(10)
     || '      end' || ASCII_CHAR(10)
 
     || '      if (A_Skip = 0) then' || ASCII_CHAR(10)
     || '      begin' || ASCII_CHAR(10)
 
-    || '        if ((select Result from P_IsHash(:SelfHash)) = 0) then' || ASCII_CHAR(10)
+    || '        if ((select Result from P_IsHash(:BHash)) = 0) then' || ASCII_CHAR(10)
     || '        begin' || ASCII_CHAR(10)
     || '          A_Skip = 1;' || ASCII_CHAR(10)
     || '          execute procedure P_BadHash(NodeRId,A_NdId,A_Tmp2);' || ASCII_CHAR(10)
@@ -1006,7 +1006,7 @@ begin
     || '        begin' || ASCII_CHAR(10)
     || '          A_Data = ' || FieldHash ||';' || ASCII_CHAR(10)
     || '          execute procedure P_CalcHash(A_Data) returning_values A_Hash;' || ASCII_CHAR(10)
-    || '          if (A_Hash <> SelfHash) then' || ASCII_CHAR(10)
+    || '          if (A_Hash <> BHash) then' || ASCII_CHAR(10)
     || '          begin' || ASCII_CHAR(10)
     || '            A_Skip = 1;' || ASCII_CHAR(10)
     || '            execute procedure P_BadHash(NodeRId,A_NdId,A_Tmp2);' || ASCII_CHAR(10)
@@ -1015,7 +1015,7 @@ begin
 
     || '        if (A_Skip = 0 and A_ChSig = 1) then' || ASCII_CHAR(10)
     || '        begin' || ASCII_CHAR(10)
-    || '          execute procedure P_IsBlockSig(SelfHash,LoadSig,PubKey) returning_values A_Test;' || ASCII_CHAR(10)
+    || '          execute procedure P_IsBlockSig(BHash,BSig,PubKey) returning_values A_Test;' || ASCII_CHAR(10)
     || '          if (A_Test = 0) then' || ASCII_CHAR(10)
     || '          begin' || ASCII_CHAR(10)
     || '            A_Skip = 1;' || ASCII_CHAR(10)
@@ -1042,7 +1042,7 @@ begin
     || '        where ParId = :A_Rid and NodeId = :A_NdId))' || ASCII_CHAR(10)
     || '      then' || ASCII_CHAR(10)
     || '        begin' || ASCII_CHAR(10)
-    || '          insert into P_TMPVoter(ParId,SelfHash,NodeId) values(:A_Rid,:SelfHash,:A_NdId);' || ASCII_CHAR(10)
+    || '          insert into P_TMPVoter(ParId,BHash,NodeId) values(:A_Rid,:BHash,:A_NdId);' || ASCII_CHAR(10)
     || '          when any do' || ASCII_CHAR(10)
     || '          begin' || ASCII_CHAR(10)
     || '            execute procedure P_LogErr(-182,sqlcode,gdscode,sqlstate,A_Tmp2,A_NdId,''P_TMPVoter'',null);' || ASCII_CHAR(10)
@@ -1051,15 +1051,15 @@ begin
     || '        end' || ASCII_CHAR(10)
 
     || '      if (A_TB = 1) then' || ASCII_CHAR(10)
-    || '        for execute statement (stm2) (:SelfHash)' || ASCII_CHAR(10)
+    || '        for execute statement (stm2) (:BHash)' || ASCII_CHAR(10)
     || '          on external A_DB as user A_USR password A_PWD' || ASCII_CHAR(10)
     || '          into :A_PNId' || ASCII_CHAR(10)
     || '        do' || ASCII_CHAR(10)
     || '          if (not exists (select 1 from P_TMPVoter' || ASCII_CHAR(10)
-    || '            where SelfHash = :SelfHash and NodeId = :A_PNId))' || ASCII_CHAR(10)
+    || '            where BHash = :BHash and NodeId = :A_PNId))' || ASCII_CHAR(10)
     || '          then' || ASCII_CHAR(10)
     || '            begin' || ASCII_CHAR(10)
-    || '              insert into P_TMPVoter(ParId,SelfHash,NodeId) values(:A_Rid,:SelfHash,:A_PNId);' || ASCII_CHAR(10)
+    || '              insert into P_TMPVoter(ParId,BHash,NodeId) values(:A_Rid,:BHash,:A_PNId);' || ASCII_CHAR(10)
     || '              when any do' || ASCII_CHAR(10)
     || '              begin' || ASCII_CHAR(10)
     || '                execute procedure P_LogErr(-183,sqlcode,gdscode,sqlstate,A_Tmp2,A_NdId,''P_TMPVoter'',null);' || ASCII_CHAR(10)
@@ -1116,13 +1116,13 @@ begin
     || '    exit;' || ASCII_CHAR(10)
     || '  end' || ASCII_CHAR(10)
     || '  if ((select Result from P_BegCommit) = 0) then exit;' || ASCII_CHAR(10)
-    || '  execute procedure P_QuorumAcc(2) returning_values A_QA;' || ASCII_CHAR(10)
+    || '  execute procedure P_AssentAcc(2) returning_values A_QA;' || ASCII_CHAR(10)
     || '  execute procedure P_LogMsg(10,0,0,null,''P_Commit'',null,''Start'',null);' || ASCII_CHAR(10)
-    || '  select first 1 BlockNo,Checksum,SelfHash from P_TChain order by BlockNo desc into :A_Rid,:A_Sum,:A_Hash;' || ASCII_CHAR(10)
+    || '  select first 1 BlockNo,Chsum,BHash from P_TChain order by BlockNo desc into :A_Rid,:A_Sum,:A_Hash;' || ASCII_CHAR(10)
     || '  for select' || ASCII_CHAR(10) || FieldArgs1 || ',' || ASCII_CHAR(10) || '    RT,Voters' || ASCII_CHAR(10)
     || '    from P_MPV' || ASCII_CHAR(10)
     || '    where State = 0' || ASCII_CHAR(10)
-    || '    order by TimeMark,SelfHash' || ASCII_CHAR(10)
+    || '    order by BTime,BHash' || ASCII_CHAR(10)
     || '    into' || ASCII_CHAR(10) || VarList1 || ',' || ASCII_CHAR(10) || '    :A_Tmp,:A_Test' || ASCII_CHAR(10)
     || '  do' || ASCII_CHAR(10)
     || '    if (A_Tmp >= A_RT)' || ASCII_CHAR(10) --RT lacuna
@@ -1146,15 +1146,15 @@ begin
     || '        end' || ASCII_CHAR(10)
     || '      else' || ASCII_CHAR(10)
     || '        if (not exists (select 1 from P_TChain' || ASCII_CHAR(10)
-    || '          where SelfHash = :SelfHash))' || ASCII_CHAR(10)
+    || '          where BHash = :BHash))' || ASCII_CHAR(10)
     || '        then' || ASCII_CHAR(10)
     || '          begin' || ASCII_CHAR(10)
     || '            ParBlkNo = A_Rid;' || ASCII_CHAR(10)
     || '            ParChsum = A_Sum;' || ASCII_CHAR(10)
-    || '            PrntHash = A_Hash;' || ASCII_CHAR(10)
+    || '            ParBHash = A_Hash;' || ASCII_CHAR(10)
     || '            insert into P_TChain(' || ASCII_CHAR(10) || FieldArgs || ')' || ASCII_CHAR(10)
     || '            values(' || ASCII_CHAR(10) || VarList || ')' || ASCII_CHAR(10)
-    || '            returning BlockNo,Checksum,SelfHash into :A_Rid,:A_Sum,:A_Hash;' || ASCII_CHAR(10)
+    || '            returning BlockNo,Chsum,BHash into :A_Rid,:A_Sum,:A_Hash;' || ASCII_CHAR(10)
     || '            Rec_Cnt = Rec_Cnt + 1;' || ASCII_CHAR(10)
     || '            when any do' || ASCII_CHAR(10)
     || '            begin' || ASCII_CHAR(10)
@@ -1244,8 +1244,8 @@ begin
   insert into P$TFldFlt(Name) values('PubKey');
   insert into P$TFldFlt(Name) values('BlockId');
   insert into P$TFldFlt(Name) values('Address');
-  insert into P$TFldFlt(Name) values('LoadSig');
-  insert into P$TFldFlt(Name) values('SelfHash');
+  insert into P$TFldFlt(Name) values('BSig');
+  insert into P$TFldFlt(Name) values('BHash');
   insert into P$TFldFlt(Name) values('SenderId');
   execute procedure P_Args('P_TChain') returning_values args;
   if (args is null or args = '') then exit;
@@ -1260,8 +1260,8 @@ begin
     || '  declare A_Cast VarChar(1) = '''';' || ASCII_CHAR(10)    
     || '  declare Result SmallInt;' || ASCII_CHAR(10)
     || '  declare ErrState TErrState;' || ASCII_CHAR(10)
-    || '  declare SelfHash TChHash;' || ASCII_CHAR(10)
-    || '  declare LoadSig TSig;' || ASCII_CHAR(10)
+    || '  declare BHash TChHash;' || ASCII_CHAR(10)
+    || '  declare BSig TSig;' || ASCII_CHAR(10)
     || '  declare Address TAddress;' || ASCII_CHAR(10)
     || '  declare SenderId TSenderId;' || ASCII_CHAR(10)
     || '  declare EncKey TKey;' || ASCII_CHAR(10)
@@ -1274,19 +1274,19 @@ begin
     || '  execute procedure P_DefAddr returning_values Address;' || ASCII_CHAR(10)
     || '  execute procedure P_DefSndId returning_values SenderId;' || ASCII_CHAR(10)
     || '  select PubKey,PvtKey from P_TParams into :PubKey,:PvtKey;' || ASCII_CHAR(10)
-    || '  -- EG: select PubKey from P_TNode where NodeId = :RecipientId into :EncKey;' || ASCII_CHAR(10)
+    || '  -- EG: select PubKey from P_TPeer where NodeId = :RecipientId into :EncKey;' || ASCII_CHAR(10)
     || FieldUTF
     || FieldEnc
     || '  A_Data = ' || FieldHash ||';' || ASCII_CHAR(10)
-    || '  execute procedure P_CalcHash(A_Data) returning_values SelfHash;' || ASCII_CHAR(10)
-    || '  execute procedure P_BlockSig(SelfHash,PvtKey) returning_values LoadSig;' || ASCII_CHAR(10)
+    || '  execute procedure P_CalcHash(A_Data) returning_values BHash;' || ASCII_CHAR(10)
+    || '  execute procedure P_BlockSig(BHash,PvtKey) returning_values BSig;' || ASCII_CHAR(10)
     || '  execute procedure P_AddBlock(' || ASCII_CHAR(10)
     ||      VarList || ')' || ASCII_CHAR(10)
     || '    returning_values Result,ErrState;' || ASCII_CHAR(10)
     || '  if (Result < 0 or ErrState is not null) then exception P_E$NewBlock;' || ASCII_CHAR(10)
     || 'end^' || ASCII_CHAR(10)
     || '/*-------------------------------------------------------------------*/' || ASCII_CHAR(10)
-    || 'grant select on P_TNode to procedure P_NewBlock;'               || ASCII_CHAR(10)
+    || 'grant select on P_TPeer to procedure P_NewBlock;'               || ASCII_CHAR(10)
     || 'grant select on P_TParams to procedure P_NewBlock;'             || ASCII_CHAR(10)
     || 'grant execute on procedure P_DefAddr to procedure P_NewBlock;'  || ASCII_CHAR(10)
     || 'grant execute on procedure P_BlockSig to procedure P_NewBlock;'  || ASCII_CHAR(10)
@@ -1313,8 +1313,8 @@ begin
   cnt = cnt * 2 -1;
   s = LPad ('', cnt, '?,');
   
-  insert into P$TFldFlt(Name) values('LoadSig');
-  insert into P$TFldFlt(Name) values('SelfHash');
+  insert into P$TFldFlt(Name) values('BSig');
+  insert into P$TFldFlt(Name) values('BHash');
 
   execute procedure P_Args_x('P_TChain') returning_values args;
   if (args is null or args = '') then exit;
@@ -1336,15 +1336,15 @@ begin
     || 'as' || ASCII_CHAR(10)
     || '  declare A_Cast VarChar(1) = '''';' || ASCII_CHAR(10)
     || '  declare Nonce TNonce;' || ASCII_CHAR(10)
-    || '  declare SelfHash TChHash;' || ASCII_CHAR(10)
-    || '  declare LoadSig TSig;' || ASCII_CHAR(10)
+    || '  declare BHash TChHash;' || ASCII_CHAR(10)
+    || '  declare BSig TSig;' || ASCII_CHAR(10)
     || '  declare A_Data TMemo;' || ASCII_CHAR(10)
     || '  declare stm VarChar(2048);' || ASCII_CHAR(10)
     || 'begin' || ASCII_CHAR(10)
     || '  Result = 0;' || ASCII_CHAR(10)
     || '  A_Data = ' || FieldHash ||';' || ASCII_CHAR(10)
-    || '  execute procedure P_FindHash(A_Data) returning_values Nonce,SelfHash;' || ASCII_CHAR(10)
-    || '  execute procedure P_BlockSig(SelfHash,PvtKey) returning_values LoadSig;' || ASCII_CHAR(10)
+    || '  execute procedure P_FindHash(A_Data) returning_values Nonce,BHash;' || ASCII_CHAR(10)
+    || '  execute procedure P_BlockSig(BHash,PvtKey) returning_values BSig;' || ASCII_CHAR(10)
     || '  stm =''execute procedure P_AddBlock(' || s || ')'';' || ASCII_CHAR(10)
     || '  execute statement' || ASCII_CHAR(10)
     || '    (stm) (' || ASCII_CHAR(10) || VarList || ')' || ASCII_CHAR(10)
@@ -1377,15 +1377,15 @@ as
 begin
   delete from P$TFldFlt;
   RelName = 'P_TCHAIN';
-  insert into P$TFldFlt(Name) values('LocalSig');
-  insert into P$TFldFlt(Name) values('CreatedAt');
+  insert into P$TFldFlt(Name) values('TmpSig');
+  insert into P$TFldFlt(Name) values('RecTime');
 
   execute procedure P_FieldArgs(RelName) returning_values FieldArgs;
   execute procedure P_S$FixChain(FieldArgs);
   ---------------------------------------
   execute procedure P_Vars(RelName) returning_values VarList1;
 
-  delete from P$TFldFlt where Name = 'LOCALSIG';
+  delete from P$TFldFlt where Name = 'TMPSIG';
   execute procedure P_StmFields(RelName) returning_values FieldList;
   execute procedure P_Decl(RelName) returning_values DeclVar;
   execute procedure P_Vars(RelName) returning_values VarList;
@@ -1394,8 +1394,8 @@ begin
   ---------------------------------------
   delete from P$TFldFlt;
   insert into P$TFldFlt(Name) values('BlockNo');
-  insert into P$TFldFlt(Name) values('CheckSum');
-  insert into P$TFldFlt(Name) values('CreatedAt');
+  insert into P$TFldFlt(Name) values('Chsum');
+  insert into P$TFldFlt(Name) values('RecTime');
   execute procedure P_Decl(RelName) returning_values DeclVar;
   execute procedure P_Vars(RelName) returning_values VarList;
   execute procedure P_FieldArgs(RelName) returning_values FieldArgs;
@@ -1407,21 +1407,21 @@ begin
   insert into P$TFldFlt(Name) values('Sid');
   insert into P$TFldFlt(Name) values('RecId');
   insert into P$TFldFlt(Name) values('State');
-  insert into P$TFldFlt(Name) values('LocalSig');
+  insert into P$TFldFlt(Name) values('TmpSig');
   execute procedure P_Vars(RelName) returning_values VarList1;
   execute procedure P_FieldArgs(RelName) returning_values FieldArgs1;
   execute procedure P_S$Commit(DeclVar,VarList,FieldArgs,VarList1,FieldArgs1);
   ---------------------------------------
   delete from P$TFldFlt where Name = 'RT';
   delete from P$TFldFlt where Name = 'SID';
-  delete from P$TFldFlt where Name = 'LOCALSIG';
+  delete from P$TFldFlt where Name = 'TMPSIG';
   execute procedure P_StmFields(RelName) returning_values FieldList;
   execute procedure P_Decl(RelName) returning_values DeclVar;
   execute procedure P_Vars(RelName) returning_values VarList;
 
   insert into P$TFldFlt(Name) values('RT');
   insert into P$TFldFlt(Name) values('Sid');
-  insert into P$TFldFlt(Name) values('LocalSig');
+  insert into P$TFldFlt(Name) values('TmpSig');
   execute procedure P_Vars(RelName) returning_values VarList1;
   execute procedure P_FieldArgs(RelName) returning_values FieldArgs;
   execute procedure P_S$MPRep(DeclVar,VarList,FieldList,VarList1,FieldArgs);
@@ -1475,8 +1475,8 @@ as
   declare RelName TSysStr31;
   declare ProcName TSysStr64;
 begin
-  execute statement 'alter view P_Chain as select * from P_TChain';
-  execute statement 'alter view P_MeltingPot as select * from P_TMeltingPot';
+  execute statement 'alter view P_Chain as select * from P_TChain where (select Online from P_TParams) > 0';
+  execute statement 'alter view P_MeltingPot as select * from P_TMeltingPot where (select Online from P_TParams) > 0';
   execute statement
     'alter view P_AddrBook(Address) as select distinct(Address) from P_TChain where Address <> ''ROOT''';
   execute statement
@@ -1486,7 +1486,7 @@ begin
     'inner join P_MyScope S on C.Address = S.Address and C.SenderId = S.SenderId';
 
   execute statement
-    'alter view P_ChainInf(BlockNo,Checksum) as select first 1 BlockNo,Checksum from P_TChain order by BlockNo desc';
+    'alter view P_ChainInf(BlockNo,Chsum) as select first 1 BlockNo,Chsum from P_TChain order by BlockNo desc';
 
   execute procedure P_DoGrants;
 end^
@@ -1499,9 +1499,9 @@ as
   declare TableBuf1 TSysStr31;
   declare TableBuf2 TSysStr31;
   declare DataType TSysStr64;
-  declare DefVal TString64;
+  declare DefVal TString63;
   declare Constr TSysStr255;
-  declare CharSet TString64;  
+  declare CharSet TString63;
 begin
   if ((select count(*) from P_TChain) > 1) then exception P_E$TableHasData;
   execute procedure P_Creating returning_values flag;
@@ -1567,7 +1567,7 @@ insert into P$TKeyWords(Name) values('A_HASH');
 insert into P$TKeyWords(Name) values('A_DATA');
 insert into P$TKeyWords(Name) values('A_CAST');
 insert into P$TKeyWords(Name) values('A_CHHSH');
-insert into P$TKeyWords(Name) values('A_CHLCS');
+insert into P$TKeyWords(Name) values('A_CHTMS');
 insert into P$TKeyWords(Name) values('A_CHSIG');
 insert into P$TKeyWords(Name) values('A_ACC');
 insert into P$TKeyWords(Name) values('A_NDID');

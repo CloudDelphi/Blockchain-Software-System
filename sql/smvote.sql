@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: smvote.sql Version: 0.4.1.8                                 */
+/* PeopleRelay: smvote.sql Version: 0.4.3.6                                 */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -23,7 +23,7 @@ create table P_TSMVoter(
   RecId             TRid,
   ParId             TRid,
   BlockNo           TRid,
-  SelfHash          TChHash not null,
+  BHash             TChHash not null,
   NodeId            TNodeId not null,
   Acceptor          TBoolean,
   RT                TCount,

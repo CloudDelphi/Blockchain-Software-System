@@ -1,7 +1,7 @@
-/* ************************************************************************ */
-/* PeopleRelay: fields.sql Version: see version.sql                         */
+/* ======================================================================== */
+/* PeopleRelay: fields.sql Version: 0.4.3.6                                 */
 /*                                                                          */
-/* Copyright 2017 Aleksei Ilin & Igor Ilin                                  */
+/* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License");          */
 /* you may not use this file except in compliance with the License.         */
@@ -14,9 +14,9 @@
 /* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. */
 /* See the License for the specific language governing permissions and      */
 /* limitations under the License.                                           */
-/* ************************************************************************ */
+/* ======================================================================== */
 
-/* Example 1*/
+/* Example; replace the filed list with app field list */
 insert into P_TFields(FieldName,DataType,DefVal,Constr)
   values('Int_Field','Integer','0','not null');
 insert into P_TFields(FieldName,DataType,DefVal,Constr)

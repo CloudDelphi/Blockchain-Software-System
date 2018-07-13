@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: check.sql Version: 0.4.1.8                                  */
+/* PeopleRelay: check.sql Version: 0.4.3.6                                  */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -27,8 +27,8 @@ end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_IsBlock(
   BlockNo TRid,
-  Checksum TIntHash,
-  SelfHash TChHash)
+  Chsum TIntHash,
+  BHash TChHash)
 returns
   (Result TCheck)
 as
@@ -39,8 +39,8 @@ begin
       Result = 0;
       if (exists (select 1 from P_TChain
         where BlockNo = :BlockNo
-          and Checksum = :Checksum
-          and SelfHash = :SelfHash))
+          and Chsum = :Chsum
+          and BHash = :BHash))
       then
         Result = 1;
     end
@@ -56,8 +56,8 @@ end^
 /*-----------------------------------------------------------------------------------------------*/
 create procedure P_DoCheckBlock(
   BlockNo TRid,
-  Checksum TIntHash,
-  SelfHash TChHash,
+  Chsum TIntHash,
+  BHash TChHash,
 
   DB TFullPath,
   Usr TUserName,
@@ -70,7 +70,7 @@ as
 begin
   stm = 'execute procedure P_IsBlock(?,?,?)';
   execute statement
-    (stm) (:BlockNo,:Checksum,:SelfHash)
+    (stm) (:BlockNo,:Chsum,:BHash)
     on external DB as user Usr password PWD
   into :Result;
 
@@ -87,7 +87,7 @@ returns
    TotOk TInt32,
    TotFail TInt32)
 as
-  declare VoteLim TCount;
+  declare Quorum TCount;
   declare CheckId TRef;
   declare rslt TCheck;
   declare TM0 TTimeMark;
@@ -95,8 +95,8 @@ as
   declare DoLog TBoolean;
   declare Acceptor TBoolean;
   declare MtCheck TBoolean;
-  declare Checksum TIntHash;
-  declare SelfHash TChHash;
+  declare Chsum TIntHash;
+  declare BHash TChHash;
   declare NodeId TNodeId;
   declare PeerIP TIPV6str;
   declare PeerPort TPort;
@@ -109,12 +109,12 @@ begin
   TM0 = CURRENT_TIMESTAMP;
 
   select Acceptor,TimeSlice,LogBlockChk from P_TParams into :Acceptor,:TMSlice,:DoLog;
-  select Checksum,SelfHash from P_TChain where BlockNo = :BlockNo into :Checksum,:SelfHash;
+  select Chsum,BHash from P_TChain where BlockNo = :BlockNo into :Chsum,:BHash;
 
   if (DoLog = 1) then
-    insert into P_TChecks(ChainId) values(:BlockNo) returning RecId into :CheckId;
+    insert into P_TChecks(BlockNo) values(:BlockNo) returning RecId into :CheckId;
 
-  execute procedure P_VoteLim(4,Acceptor) returning_values VoteLim;
+  execute procedure P_GetQuorum(4,Acceptor,-1) returning_values Quorum;
 
   for select
       NodeId,
@@ -124,7 +124,7 @@ begin
       ExtPWD,
       FullPath
     from
-      P_NodeList(4,:Acceptor)
+      P_PeerList(4,:Acceptor)
     into
       :NodeId,
       :PeerIp,
@@ -135,7 +135,7 @@ begin
   do
     if ((select Result from P_IsOnline(:PeerIP,:PeerPort)) = 1) then
     begin
-      execute procedure P_DoCheckBlock(BlockNo,Checksum,SelfHash,DB,Usr,PWD,NodeId) returning_values rslt;
+      execute procedure P_DoCheckBlock(BlockNo,Chsum,BHash,DB,Usr,PWD,NodeId) returning_values rslt;
       if (rslt <= 0 or rslt = 2)
       then
         TotFail = TotFail + 1;
@@ -146,7 +146,7 @@ begin
           if (DoLog = 1) then
             insert into P_TChkLog(CheckId,NodeId) values(:CheckId,:NodeId);
         end
-      if (TotOk >= VoteLim) then
+      if (TotOk >= Quorum) then
       begin
         Result = 1;
         Leave;
@@ -235,7 +235,7 @@ begin
         ExtPWD,
         FullPath
       from
-        P_NodeList(5,0)
+        P_PeerList(5,0)
       order by
         Accept desc
       into
@@ -271,9 +271,9 @@ grant all on P_TChkLog to procedure P_CheckBlock;
 grant select on P_TChain to procedure P_CheckBlock;
 grant select on P_TParams to procedure P_CheckBlock;
 grant execute on procedure P_LogErr to procedure P_CheckBlock;
-grant execute on procedure P_VoteLim to procedure P_CheckBlock;
 grant execute on procedure P_IsOnline to procedure P_CheckBlock;
-grant execute on procedure P_NodeList to procedure P_CheckBlock;
+grant execute on procedure P_PeerList to procedure P_CheckBlock;
+grant execute on procedure P_GetQuorum to procedure P_CheckBlock;
 grant execute on procedure P_DoCheckBlock to procedure P_CheckBlock;
 
 grant select on P_TChain to  procedure P_Compare;
@@ -287,6 +287,6 @@ grant execute on procedure P_LOGERR to procedure P_Compare;
 grant select on P_TParams to procedure P_FindBlock;
 grant execute on procedure P_IsOnline to procedure P_FindBlock;
 grant execute on procedure P_HasBlock to procedure P_FindBlock;
-grant execute on procedure P_NodeList to procedure P_FindBlock;
+grant execute on procedure P_PeerList to procedure P_FindBlock;
 /*-----------------------------------------------------------------------------------------------*/
 

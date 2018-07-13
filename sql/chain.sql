@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: chain.sql Version: 0.4.1.8                                  */
+/* PeopleRelay: chain.sql Version: 0.4.3.6                                  */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -23,70 +23,71 @@ create generator P_G$MPSId;
 /*-----------------------------------------------------------------------------------------------*/
 /*
 select
-  DateDiff(Second,C.TimeMark,C.CreatedAt) as Delta,
+  DateDiff(Second,C.BTime,C.RecTime) as Delta,
   C.*
 from P_TChain C
 */
 
 create table P_TChain(
   BlockNo           TRid,
-  Checksum          TIntHash not null,
-  SelfHash          TChHash not null,
+  Chsum             TIntHash not null, /* Block Check Sum */
+  BHash             TChHash not null,
   ParBlkNo          TRid,
   ParChsum          TIntHash not null,
-  PrntHash          TChHash not null,
+  ParBHash          TChHash not null,
   BlockId           TBlockId not null,
-  TimeMark          TTimeMark not null,
+  BTime             TTimeMark not null, /* Block creation time */
   Address           TAddress not null,
   SenderId          TSenderId not null,
   Nonce             TNonce,
-  CreatedAt         TTimeMark not null,
-  LoadSig           TSig not null,
-
-  LocalSig          TSig not null,
+  RecTime           TTimeMark not null, /* Record time */
+  BSig              TSig not null,
+  TmpSig            TSig not null,
+  /* Temporary Signature of This Node. To check sooth of the transmitter of every block on data trasfer. */
+  /* Actually can be calculated dynamically by the calculated field of the P_Chain view. But such is very slow. */
 
   PubKey            TKey not null,
-  primary key       (BlockNo,Checksum,SelfHash),
-  foreign key       (ParBlkNo,ParChsum,PrntHash) references P_TChain(BlockNo,Checksum,SelfHash));
+  primary key       (BlockNo,Chsum,BHash),
+  foreign key       (ParBlkNo,ParChsum,ParBHash) references P_TChain(BlockNo,Chsum,BHash));
 /*-----------------------------------------------------------------------------------------------*/
 create unique index P_XU$Ch1 on P_TChain(BlockNo);
 create unique descending index P_XU$Ch2 on P_TChain(BlockNo);
-create unique index P_XU$Ch3 on P_TChain(SelfHash);
-create unique descending index P_XU$Ch4 on P_TChain(SelfHash);
-create unique index P_XU$Ch5 on P_TChain(TimeMark,SelfHash);
+create unique index P_XU$Ch3 on P_TChain(BHash);
+create unique descending index P_XU$Ch4 on P_TChain(BHash);
+create unique index P_XU$Ch5 on P_TChain(BTime,BHash);
 create unique index P_XU$Ch6 on P_TChain(SenderId,BlockId);
 /*-----------------------------------------------------------------------------------------------*/
   insert into P_TChain(
     BlockNo,
-    Checksum,
-    SelfHash,
+    Chsum,
+    BHash,
     ParBlkNo,
     ParChsum,
-    PrntHash,
+    ParBHash,
     BlockId,
-    TimeMark,
+    BTime,
     Address,
     SenderId,
     Nonce,
-    CreatedAt,
-    LoadSig,
-    LocalSig,
+    RecTime,
+    BSig,
+    TmpSig,
     PubKey)
   values(
     0,   --BlockNo
-    0,   --Checksum
-    '0', --SelfHash
+    0,   --Chsum
+    '0', --BHash
     0,   --ParBlkNo
     0,   --ParChsum
-    '0', --PrntHash
+    '0', --ParBHash
     '0', --BlockId
-    UTCTime(), --TimeMark
+    UTCTime(), --BTime
     'ROOT', --Address
     'ROOT', --SenderId
     0,      --TNonce
-    UTCTime(), --CreatedAt
-    '0',  --LoadSig
-    '0',  --LocalSig
+    UTCTime(), --RecTime
+    '0',  --BSig
+    '0',  --TmpSig
     '0'); --PubKey
 commit work;
 /*-----------------------------------------------------------------------------------------------*/
@@ -97,7 +98,7 @@ as
   declare IsApp TBoolean;
   declare IsRepl TBoolean;
   declare ParChsum TIntHash;
-  declare PrntHash TChHash;
+  declare ParBHash TChHash;
 begin
   execute procedure P_IsRepl returning_values IsRepl;
   execute procedure P_Commiting returning_values IsApp; /* Append records flag */
@@ -106,16 +107,16 @@ begin
     exception P_E$Forbidden;
   else
     begin
-      select first 1 Checksum,PrntHash from P_TChain order by BlockNo desc into :ParChsum,:PrntHash;
+      select first 1 Chsum,ParBHash from P_TChain order by BlockNo desc into :ParChsum,:ParBHash;
       if (IsApp = 1) then
       begin
         new.BlockNo = new.ParBlkNo + 1;
-        new.Checksum = Hash(ParChsum || '-' || PrntHash || '-' || new.SelfHash);
+        new.Chsum = Hash(ParChsum || '-' || ParBHash || '-' || new.BHash);
       end
 
-      if (new.SelfHash is not null) then
-        execute procedure P_SysSig(new.SelfHash,null) returning_values new.LocalSig;
-      new.CreatedAt = UTCTime();
+      if (new.BHash is not null) then
+        execute procedure P_SysSig(new.BHash,null) returning_values new.TmpSig;
+      new.RecTime = UTCTime();
     end
 end^
 /*-----------------------------------------------------------------------------------------------*/
@@ -143,14 +144,14 @@ set term ; ^
 /*-----------------------------------------------------------------------------------------------*/
 create table P_TMeltingPot(
   RecId             TRid,
-  SelfHash          TChHash not null,
+  BHash             TChHash not null,
   BlockId           TBlockId not null,
-  TimeMark          TTimeMark,
+  BTime             TTimeMark,
   Address           TAddress not null,
   SenderId          TSenderId not null,
   Nonce             TNonce,
-  LoadSig           TSig not null,
-  LocalSig          TSig not null,
+  BSig              TSig not null,
+  TmpSig            TSig not null,
   PubKey            TKey not null,
   State             TState,
   RT                TCount,
@@ -159,8 +160,8 @@ create table P_TMeltingPot(
   primary key       (RecId));
 /*-----------------------------------------------------------------------------------------------*/
 create unique index P_XU$MP1 on P_TMeltingPot(SenderId,BlockId);
-create unique index P_XU$MP2 on P_TMeltingPot(SelfHash);
-create index P_X$MP1 on P_TMeltingPot(TimeMark);
+create unique index P_XU$MP2 on P_TMeltingPot(BHash);
+create index P_X$MP1 on P_TMeltingPot(BTime);
 create index P_X$MP2 on P_TMeltingPot(State);
 create index P_X$MP3 on P_TMeltingPot(Own);
 create index P_X$MP4 on P_TMeltingPot(RT);
@@ -184,13 +185,13 @@ begin
       new.Sid = -new.RecId; /* Minus sign is here to prevent coinsedence of P_G$MP and P_G$MPSId */
       /* Cannot put Gen_Id(P_G$MPSId,1) here because of on exception, P_G$MPSId sequenced value will be lost */
 
-      if (new.SelfHash is not null) then
-        execute procedure P_SysSig(new.SelfHash,null) returning_values new.LocalSig;
+      if (new.BHash is not null) then
+        execute procedure P_SysSig(new.BHash,null) returning_values new.TmpSig;
 
       if (IsAddB = 1) then
       begin
         new.Own = 1;
-        new.TimeMark = UTCTime();
+        new.BTime = UTCTime();
         if (new.BlockId is null) then /* Sender can assign it. */
           new.BlockId = uuid_to_Char(gen_uuid());
       end
@@ -248,23 +249,23 @@ set term ; ^
 create table P_TBacklog(
   RecId             TRid,
   BlockNo           TRid, -- unique,
-  Checksum          TIntHash not null,
-  SelfHash          TChHash not null,
+  Chsum             TIntHash not null,
+  BHash             TChHash not null,
   ParBlkNo          TRid,
   ParChsum          TIntHash not null,
-  PrntHash          TChHash not null,
+  ParBHash          TChHash not null,
   BlockId           TBlockId not null,
-  TimeMark          TTimeMark,
+  BTime             TTimeMark,
   Address           TAddress not null,
   SenderId          TSenderId not null,
   Nonce             TNonce,
-  LoadSig           TSig not null,
+  BSig              TSig not null,
   PubKey            TKey not null,
   RT                TCount,
   primary key       (RecId));
 /*-----------------------------------------------------------------------------------------------*/
-create unique index P_XU$BL1 on P_TBacklog(BlockNo,Checksum,SelfHash);
-create index P_X$BL1 on P_TBacklog(SelfHash);
+create unique index P_XU$BL1 on P_TBacklog(BlockNo,Chsum,BHash);
+create index P_X$BL1 on P_TBacklog(BHash);
 create index P_X$BL3 on P_TBacklog(RT);
 /*-----------------------------------------------------------------------------------------------*/
 set term ^ ;
@@ -301,7 +302,7 @@ end^
 create procedure P_ClearBackLog
 as
 begin
-  delete from P_TBacklog L where exists (select 1 from P_TChain C where C.SelfHash = L.SelfHash);
+  delete from P_TBacklog L where exists (select 1 from P_TChain C where C.BHash = L.BHash);
   when any do
     execute procedure P_LogErr(-33,sqlcode,gdscode,sqlstate,'P_ClearBackLog',null,'Error',null);
 end^
@@ -328,8 +329,8 @@ end^
 /*-----------------------------------------------------------------------------------------------*/
 set term ; ^
 /*-----------------------------------------------------------------------------------------------*/
-create view P_Chain as select * from P_TChain;
-create view P_MeltingPot as select * from P_TMeltingPot;
+create view P_Chain as select * from P_TChain where (select Online from P_TParams) > 0;
+create view P_MeltingPot as select * from P_TMeltingPot where (select Online from P_TParams) > 0;
 /*-----------------------------------------------------------------------------------------------*/
 create view P_MyChain as select C.* from P_TChain C
   inner join P_MyScope S on C.Address = S.Address and C.SenderId = S.SenderId;
@@ -342,11 +343,11 @@ create view P_SndBook(SenderId) as select distinct(SenderId) from P_TChain where
 /*-----------------------------------------------------------------------------------------------*/
 create view P_ChainInf(
   BlockNo,
-  Checksum)
+  Chsum)
 as
   select first 1
     BlockNo,
-    Checksum
+    Chsum
     from P_TChain
     order by BlockNo desc;
 /*-----------------------------------------------------------------------------------------------*/

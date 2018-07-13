@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: _create.sql Version: 0.4.3.6                                */
+/* PeopleRelay: set_params.sql Version: 0.4.3.6                             */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -16,15 +16,21 @@
 /* limitations under the License.                                           */
 /* ======================================================================== */
 
-SET SQL DIALECT 3;
-SET NAMES UTF8;
-SET AUTODDL ON;
-create database '127.0.0.1/3050:peoplerelay.fb' PAGE_SIZE 8192
-USER 'SYSDBA' PASSWORD 'masterkey' DEFAULT CHARACTER SET UTF8;
-create domain TComment as VarChar(63) COLLATE UNICODE_CI;
-create domain TString16 as VarChar(16) COLLATE UNICODE_CI;
-create domain TString32 as VarChar(32) COLLATE UNICODE_CI;
-create domain TString63 as VarChar(63) COLLATE UNICODE_CI;
-create domain TString128 as VarChar(128) COLLATE UNICODE_CI;
-create domain TString512 as VarChar(512) COLLATE UNICODE_CI;
-create domain TString4K as VarChar(4096) COLLATE UNICODE_CI;
+/*-----------------------------------------------------------------------------------------------*/
+/*
+  update P_TTransponder
+    set
+      Prime = 'C2629B08-31A5-4616-A845-3BAA5377007B',
+      Cluster = 'D68BEB82-0DA1-4058-A04D-E96946236FD4';
+*/
+/*-----------------------------------------------------------------------------------------------*/
+/*
+  update P_TParams 
+  set
+    Acceptor = 1,
+    SndControl = 0,
+    PowerOnReset = 3;
+*/
+/*-----------------------------------------------------------------------------------------------*/
+commit work;
+/*-----------------------------------------------------------------------------------------------*/

@@ -1,6 +1,6 @@
 @echo off
 Rem ======================================================================== Rem
-Rem PeopleRelay: build_app.bat Version: 0.4.1.8                              Rem
+Rem PeopleRelay: build_app.bat Version: 0.4.3.6                              Rem
 Rem                                                                          Rem
 Rem Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             Rem
 Rem                                                                          Rem

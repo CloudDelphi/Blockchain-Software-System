@@ -1,5 +1,5 @@
 /* ======================================================================== */
-/* PeopleRelay: str_util.sql Version: 0.4.1.8                               */
+/* PeopleRelay: str_util.sql Version: 0.4.3.6                               */
 /*                                                                          */
 /* Copyright 2017-2018 Aleksei Ilin & Igor Ilin                             */
 /*                                                                          */
@@ -132,9 +132,9 @@ begin
     Result = s;
 end^
 /*-----------------------------------------------------------------------------------------------*/
-create procedure P_ExpandIPv6(IP TSysStr255)
+create procedure P_ExpandIPv6(IP TIPV6str)
 returns
- (Result TSysStr255)
+ (Result TIPV6str)
 as
   declare L Integer;
   declare sc Integer;
